@@ -161,8 +161,7 @@ export function createMergeRequests({
   verifyMembership,
   // Prepares a branch that is behind main. Called with the request, the trusted
   // pin `{ pullRequestNumber, commit, branch }` and `{ signal }`; it
-  // returns the result the request ends with. Without it a behind branch is
-  // only refused.
+  // returns the result the request ends with.
   synchronizeBehind,
   github,
   repository,
@@ -172,7 +171,7 @@ export function createMergeRequests({
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   recordTrace = () => {},
   // The text of a report is an effect the next turn of the topic must know.
-  recordServiceNote = () => {},
+  recordServiceNote,
   logger = () => {},
 }) {
   function safeTrace(entry) {
@@ -288,7 +287,7 @@ export function createMergeRequests({
       case mergeableStates.dirty:
         // GitHub reports conflicts with main as dirty, not behind. The
         // synchronizer verifies ancestry before changing the worktree.
-        return synchronizeBehind ? refusals.behind : refusals.notClean;
+        return refusals.behind;
       default:
         return refusals.notClean;
     }
@@ -335,9 +334,9 @@ export function createMergeRequests({
     const refusal = refusalFor(pullRequest, target, live.classification);
     // A branch that would be synchronised is checked too: a change the topic
     // cannot merge never gets a synchronisation or a new preview.
-    const synchronizable =
-      refusal === refusals.behind && synchronizeBehind !== undefined;
-    if (refusal !== null && !synchronizable) return { pullRequest, refusal };
+    if (refusal !== null && refusal !== refusals.behind) {
+      return { pullRequest, refusal };
+    }
     if (!(await readTopicMergeable(target.commit, signal))) {
       return { pullRequest, refusal: refusals.infrastructureChanges };
     }
@@ -762,8 +761,7 @@ export function createMergeRequests({
     if (mergeState.refusal === refusals.alreadyMerged) {
       return alreadyMergedAnswer(request, target, mergeState.pullRequest);
     }
-    const behind =
-      mergeState.refusal === refusals.behind && synchronizeBehind !== undefined;
+    const behind = mergeState.refusal === refusals.behind;
     if (mergeState.refusal !== null && !behind) {
       return refuse(
         request,
@@ -876,7 +874,7 @@ export function createMergeRequests({
     try {
       const live = await readMergeState(target, signal);
       if (!stillCurrent()) return quietConfirmation;
-      if (live.refusal === refusals.behind && synchronizeBehind !== undefined) {
+      if (live.refusal === refusals.behind) {
         const synchronized = await synchronize(
           request,
           target,

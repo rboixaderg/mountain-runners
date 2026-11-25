@@ -48,7 +48,7 @@ import {
 } from "../attachments/test-support/synthetic-images.mjs";
 import { runAgent } from "../runtime/agent.mjs";
 import { createMergeRequests } from "./merge-request.mjs";
-import { createProjectRunner } from "./project-runner.mjs";
+import { createTestProjectRunner } from "./test-support/project-runner.mjs";
 import {
   createBranch,
   ensureSessionWorktree,
@@ -242,7 +242,7 @@ test("a question with web research is a writable turn that reports sources", asy
   const operations = [];
   const github = githubStub();
   let preparations = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     researchReview: review,
@@ -288,7 +288,7 @@ test("a merge before the first change leaves the job without private review", as
     directory: join(paths.state, "review"),
   });
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     researchReview: review,
@@ -339,7 +339,7 @@ test("a research-informed change requires approval and retries the reviewed snap
   });
   let turns = 0;
   let checks = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     researchReview: review,
@@ -406,7 +406,7 @@ test("a research-informed change requires approval and retries the reviewed snap
 test("gives the prompt the current instant of the service in Europe/Madrid", async (context) => {
   const paths = await fixture(context);
   const prompts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
@@ -430,7 +430,7 @@ test("gives the prompt the current instant of the service in Europe/Madrid", asy
 test("answers a consultation without creating a branch or a remote effect", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
 
@@ -451,7 +451,7 @@ test("answers a consultation without creating a branch or a remote effect", asyn
 
 test("strips the change summary from a consultation answer", async (context) => {
   const paths = await fixture(context);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async () => ({
@@ -470,7 +470,7 @@ test("runs a question as one writable turn without publication", async (context)
   const paths = await fixture(context);
   const github = githubStub();
   const turns = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async (options) => {
@@ -525,7 +525,7 @@ test("publishes a later change to the existing pull request of the topic", async
       created: false,
     };
   };
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
@@ -599,7 +599,7 @@ for (const [name, overrides] of [
   test(`answers a topic whose bound pull request is ${name} without a turn`, async (context) => {
     const fixtureState = await boundTopicFixture(context, overrides);
     const { github, calls } = fixtureState;
-    const runner = createProjectRunner(fixtureState.runnerOptions);
+    const runner = createTestProjectRunner(fixtureState.runnerOptions);
 
     const result = await runner(request({ updateIdentifier: 1002 }));
 
@@ -620,7 +620,7 @@ test("a bound pull request that cannot be read is not assumed open", async (cont
   github.getPullRequest = async () => {
     throw new Error("GitHub unavailable");
   };
-  const runner = createProjectRunner(fixtureState.runnerOptions);
+  const runner = createTestProjectRunner(fixtureState.runnerOptions);
 
   const result = await runner(request({ updateIdentifier: 1002 }));
 
@@ -644,7 +644,7 @@ test("an open bound pull request still runs the model turn", async (context) => 
       created: false,
     };
   };
-  const runner = createProjectRunner(fixtureState.runnerOptions);
+  const runner = createTestProjectRunner(fixtureState.runnerOptions);
 
   const result = await runner(request({ updateIdentifier: 1002 }));
 
@@ -658,7 +658,7 @@ test("/merge on a finished topic keeps its own path", async (context) => {
     merged: true,
   });
   const merges = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     ...fixtureState.runnerOptions,
     requestMerge: async (mergeRequest, command) => {
       merges.push(command);
@@ -676,7 +676,7 @@ test("/merge on a finished topic keeps its own path", async (context) => {
 test("prepares dependencies before the model for an implementation", async (context) => {
   const paths = await fixture(context);
   const calls = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     executeSandbox: async (options) => {
@@ -700,7 +700,7 @@ test("prepares dependencies before the model for an implementation", async (cont
 test("prepares a writable environment for a question", async (context) => {
   const paths = await fixture(context);
   let prepared = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     executeSandbox: async () => {
@@ -718,7 +718,7 @@ test("prepares a writable environment for a question", async (context) => {
 test("publishes a change made while answering a question", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -739,7 +739,7 @@ test("does not start the model when offline preparation fails", async (context) 
   const paths = await fixture(context);
   const github = githubStub();
   let modelStarted = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     executeSandbox: async () => ({ exitCode: 1, timedOut: false }),
@@ -757,7 +757,7 @@ test("does not start the model when offline preparation fails", async (context) 
 
 test("reports a timed-out preparation without starting the model", async (context) => {
   const paths = await fixture(context);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     executeSandbox: async () => ({ exitCode: -1, timedOut: true }),
@@ -772,7 +772,7 @@ test("publishes a small change as a pull request after the checks pass", async (
   const paths = await fixture(context);
   const github = githubStub();
   const checks = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -819,7 +819,7 @@ test("passes a fresh Git file inventory to the sandbox checks without mounting G
   let inventoryPath;
   let capturedFiles;
   let command;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async ({ worktreePath }) => {
@@ -858,7 +858,7 @@ test("the service inventory lets the real documentation checker run without the 
   const sandbox = join(paths.directory, "isolated-copy");
   const github = githubStub();
   let checkerRan = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -909,11 +909,9 @@ test("the service inventory lets the real documentation checker run without the 
 test("does not publish files created after the documentation inventory was captured", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const events = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    logger: (event) => events.push(event),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -928,14 +926,17 @@ test("does not publish files created after the documentation inventory was captu
 
   assert.equal(result.outcome, "failed");
   assert.equal(github.pushes.length, 0);
-  assert.ok(events.includes("documentation_inventory_changed"));
+  assert.equal(
+    result.report,
+    `Canvi fet.\n\n${instructionReports.checksFailed}`,
+  );
   assert.equal(existsSync(join(topicWorktreePath(paths), "late.md")), true);
 });
 
 test("leaves a file deleted by the checkpointed change out of the documentation inventory", async (context) => {
   const paths = await fixture(context);
   let checked = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async ({ worktreePath }) => {
@@ -962,7 +963,7 @@ test("leaves a file deleted by the checkpointed change out of the documentation 
 test("does not publish a tracked file deleted during the checks", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -991,7 +992,7 @@ test("keeps an unconfirmed sandbox stop uncertain even if inventory cleanup fail
       rmSync(directory, { recursive: true, force: true });
     }
   });
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -1028,7 +1029,7 @@ async function runMainSync(
   let checks = 0;
   let modelTurns = 0;
   let advancedMain;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath, instruction }) => {
@@ -1224,7 +1225,7 @@ test("publishes pending work after a later question when checks recover", async 
   const events = [];
   let turn = 0;
   let checkCount = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -1275,7 +1276,7 @@ test("retries the same refused commit after the next model turn", async (context
     return pushBranch(options);
   };
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -1341,7 +1342,7 @@ test("retries a refused commit on an already bound pull request", async (context
     };
   };
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -1388,7 +1389,7 @@ test("reports a persistent publication block after each model turn", async (cont
   const github = githubStub();
   let modelTurns = 0;
   let checkCount = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -1426,7 +1427,7 @@ test("does not bind a topic when local checks block publication", async (context
   const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
   context.after(() => topicJobs.close());
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -1447,7 +1448,7 @@ test("does not take another topic's pull request when its number is mentioned", 
   const github = githubStub();
   github.getPullRequest = async () =>
     assert.fail("another topic's pull request must not be read");
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ instruction }) => {
@@ -1513,7 +1514,7 @@ async function assertAdvancedPullRequest(
   };
   let modelTurns = 0;
   let conflictTurns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -1797,9 +1798,10 @@ test("a bound pull request that cannot be read before the push fails locally", a
   let reads = 0;
   github.getPullRequest = (options) => {
     reads += 1;
-    // The first read is the check before the model turn; the second one is the
-    // publisher's, immediately before the push.
-    if (reads === 2) return unreadable(options);
+    // The first read is the check before the model turn and the second one the
+    // state of the topic; the third is the publisher's, immediately before the
+    // push.
+    if (reads === 3) return unreadable(options);
     return Promise.resolve({
       state: "open",
       draft: false,
@@ -1820,7 +1822,7 @@ test("a bound pull request that cannot be read before the push fails locally", a
     };
   };
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -1877,7 +1879,7 @@ test("two implementation turns publish to the first bound pull request", async (
     };
   };
   let turn = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -1975,7 +1977,7 @@ test("runs the fast gate for a web-only change and names it in the pull request"
   const notes = noteStore(context, paths);
   const github = githubStub();
   const commands = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     sessionNotes: notes,
@@ -2024,7 +2026,7 @@ test("runs the full gate when the change also touches files outside the web app 
   const paths = await fixture(context);
   const github = githubStub();
   const commands = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2055,7 +2057,7 @@ test("runs the full gate when the change also touches files outside the web app 
 test("puts the preview label on the pull request it creates and never again on an update", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2093,7 +2095,7 @@ test("says plainly that the preview could not be activated and keeps the publica
   const github = githubStub();
   github.labelError = new Error("GitHub refused the label");
   const traces = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
     github,
@@ -2130,7 +2132,7 @@ test("sends the failure notice once when the label and the CI watch both fail", 
     throw new Error("The watch cannot be stored");
   };
   const traces = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
     github,
@@ -2157,7 +2159,7 @@ test("sends the failure notice once when the label and the CI watch both fail", 
 test("sends the model answer with one plain notice and the review link after a publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2204,7 +2206,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
     assert.fail("the instruction must not wait for CI");
   github.getPullRequest = () =>
     assert.fail("the instruction must not wait for CI");
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
@@ -2238,7 +2240,7 @@ test("follows the preview of every commit it publishes, without a request", asyn
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
   context.after(() => ciWatches.close());
   const followed = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     ciWatches,
@@ -2268,11 +2270,11 @@ test("follows the preview of every commit it publishes, without a request", asyn
 test("ends the instruction unknown when the CI watch cannot be registered", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches: {
-      latestPublications: () => [],
+      topicPullRequestNumber: () => null,
       add() {
         throw new Error("state volume full");
       },
@@ -2299,7 +2301,7 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   const paths = await fixture(context);
   const github = githubStub();
   const entries = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     logger: (event, detail) => entries.push([event, detail]),
@@ -2393,7 +2395,7 @@ for (const scenario of [
     }
     const sessionNotes = noteStore(context, paths);
     const prompts = [];
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github,
       sessionNotes,
@@ -2434,7 +2436,7 @@ test("refuses a nested repository locally without entering it and keeps the work
   const github = githubStub();
   const entries = [];
   const marker = join(paths.directory, "filter-ran");
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     logger: (event, detail) => entries.push([event, detail]),
@@ -2523,7 +2525,7 @@ for (const scenario of [
     const github = githubStub();
     const entries = [];
     const controller = new AbortController();
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github,
       logger: (event, detail) => entries.push([event, detail]),
@@ -2567,7 +2569,7 @@ for (const edits of [false, true]) {
   test(`fails a topic turn with a provider error ${edits ? "with" : "without"} edits and publishes nothing`, async (context) => {
     const paths = await fixture(context);
     const github = githubStub();
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github,
       runModel: async ({ worktreePath }) => {
@@ -2589,7 +2591,7 @@ for (const edits of [false, true]) {
 test("reports a timed-out local run as failed and keeps the work", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async () => ({ text: "", timedOut: true }),
@@ -2614,7 +2616,7 @@ for (const failureStage of [
     const paths = await fixture(context);
     const github = githubStub();
     const controller = new AbortController();
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github,
       runModel: async ({ worktreePath }) => {
@@ -2641,7 +2643,7 @@ for (const failureStage of [
 test("logs the reason of a local failure for the operator", async (context) => {
   const paths = await fixture(context);
   const entries = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     logger: (event, detail) => entries.push([event, detail]),
@@ -2673,7 +2675,7 @@ for (const diagnostics of [
   test(`logs Pi's ${diagnostics.reason} metadata without logging the exception message`, async (context) => {
     const paths = await fixture(context);
     const entries = [];
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github: githubStub(),
       logger: (event, detail) => entries.push([event, detail]),
@@ -2700,7 +2702,7 @@ for (const diagnostics of [
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async () => {
@@ -2719,7 +2721,7 @@ test("runs a continuation without pending work as a writable topic turn", async 
   const paths = await fixture(context);
   const github = githubStub();
   const modelContexts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async (modelContext) => {
@@ -2747,7 +2749,7 @@ test("publishes the answer of a continuation on a clean topic that asked a quest
   const notes = noteStore(context, paths);
   const github = githubStub();
   let turn = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     sessionNotes: notes,
@@ -2786,7 +2788,7 @@ test("passes the configured provider credentials to the publication scanner", as
   config.model.providerEnvironment = {
     SYNTHETIC_PROVIDER_KEY: "synthetic-provider-secret",
   };
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config,
     github,
     runModel: async ({ worktreePath }) => {
@@ -2806,7 +2808,7 @@ test("passes the configured provider credentials to the publication scanner", as
 test("uses a conventional fallback when the model omits the summary", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2828,7 +2830,7 @@ test("uses a conventional fallback when the model omits the summary", async (con
 test("keeps one worktree per topic so the Pi session continues", async (context) => {
   const paths = await fixture(context);
   const seen = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async ({ worktreePath }) => {
@@ -2849,7 +2851,7 @@ test("keeps one worktree per topic so the Pi session continues", async (context)
 test("gives the sandbox an opaque name that carries no chat or topic", async (context) => {
   const paths = await fixture(context);
   const seen = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async (modelContext) => {
@@ -2895,7 +2897,7 @@ test("continues the unpublished branch when the previous checks failed", async (
   const paths = await fixture(context);
   const github = githubStub();
   let checksPass = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2931,7 +2933,7 @@ test("starts a new branch from the latest main after a published change", async 
   const paths = await fixture(context);
   const github = githubStub();
   let attempt = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -2982,7 +2984,7 @@ test("reports a local publication refusal as a failure, not an unknown result", 
       "The worktree file leaked.env contains a live credential.",
     );
   };
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -3012,7 +3014,7 @@ test("retries a locally refused publication without losing or duplicating the co
     return publish(parameters);
   };
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -3057,7 +3059,7 @@ for (const operationName of ["pushBranch", "ensurePullRequest"]) {
       await operation(parameters);
       throw failure;
     };
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github,
       runModel: async ({ worktreePath }) => {
@@ -3090,7 +3092,7 @@ test("keeps the instruction uncertain when the publication deadline expires afte
     throw new DOMException("The operation timed out.", "TimeoutError");
   };
   const controller = new AbortController();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -3126,7 +3128,7 @@ function unreadablePullRequestRead(milliseconds) {
 }
 
 async function publishedWorktree(context, paths, github, ciWatches) {
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
@@ -3144,7 +3146,7 @@ test("routes a literal /merge command to the service before the model", async (c
   const paths = await fixture(context);
   const github = githubStub();
   const commands = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     requestMerge: async (mergeRequest, command) => {
@@ -3238,7 +3240,7 @@ test("only contextual replies reach the merge confirmation", async (context) => 
     },
     retryDelayMilliseconds: 0,
   });
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async ({ instruction }) => {
@@ -3284,7 +3286,7 @@ test("only contextual replies reach the merge confirmation", async (context) => 
 test("never treats prose as a merge", async (context) => {
   const paths = await fixture(context);
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     requestMerge: async () => assert.fail("prose must never reach a merge"),
@@ -3309,7 +3311,7 @@ test("never treats prose as a merge", async (context) => {
 
 test("a merge store failure reaches the runner failure report", async (context) => {
   const paths = await fixture(context);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     requestMerge: async () => {
@@ -3359,7 +3361,7 @@ test("does not warn about the files of another topic's pull request", async (con
   });
   await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
   const traces = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     ciWatches,
@@ -3385,7 +3387,7 @@ test("never compares overlaps for a consultation", async (context) => {
   context.after(() => ciWatches.close());
   await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
   const traces = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     ciWatches,
@@ -3408,7 +3410,7 @@ test("never compares overlaps for a continuation without changes", async (contex
   context.after(() => ciWatches.close());
   await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
   const traces = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     ciWatches,
@@ -3428,7 +3430,7 @@ test("publishes a continuation without an overlap warning", async (context) => {
   context.after(() => ciWatches.close());
   const traces = [];
   let checksPass = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     ciWatches,
@@ -3465,13 +3467,11 @@ test("keeps the checkpointed work unpublished when the signal aborts during chec
   const paths = await fixture(context);
   const github = githubStub();
   const controller = new AbortController();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches: {
-      latestPublications() {
-        return [];
-      },
+      topicPullRequestNumber: () => null,
       add() {},
     },
     runModel: async ({ worktreePath }) => {
@@ -3533,7 +3533,7 @@ test("places an attached image and appends the service text to the instruction",
   const image = pngImage({ width: 1200, height: 800 });
   const traces = [];
   const instructions = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -3614,7 +3614,7 @@ test("carries the audience rules, the state of the topic and the attachment line
   const prompts = [];
   const config = configFor(paths);
   config.github.requiredChecks = ["Validate"];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config,
     github: {
       ...githubStub(),
@@ -3690,7 +3690,7 @@ test("carries the audience rules, the state of the topic and the attachment line
 test("passes an image to a consultation with web research enabled", async (context) => {
   const paths = await fixture(context);
   const image = pngImage({ width: 200, height: 100 });
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     research: {
@@ -3720,7 +3720,7 @@ test("reports a refused attachment without starting the model", async (context) 
   const image = jpegImage({ width: 120, height: 80 });
   const traces = [];
   let modelStarted = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -3757,7 +3757,7 @@ test("never commits an attachment on a branch without the ignore rule", async (c
   const paths = await fixture(context, { ignoreAttachments: false });
   const image = pngImage({ width: 200, height: 100 });
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     recordTrace: () => {},
@@ -3795,7 +3795,7 @@ test("never commits an attachment on a branch without the ignore rule", async (c
 test("publishes nothing when the model only asks for the image rights", async (context) => {
   const paths = await fixture(context, { ignoreAttachments: false });
   const github = githubStub();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     recordTrace: () => {},
@@ -3823,7 +3823,7 @@ test("continues a branch created before the ignore rule without publishing the a
   const paths = await fixture(context, { ignoreAttachments: false });
   const image = pngImage({ width: 200, height: 100 });
   const github = githubStub();
-  const first = createProjectRunner({
+  const first = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -3837,7 +3837,7 @@ test("continues a branch created before the ignore rule without publishing the a
   assert.equal(failed.outcome, "failed");
   assert.deepEqual(github.pushes, []);
 
-  const continuation = createProjectRunner({
+  const continuation = createTestProjectRunner({
     config: configFor(paths),
     github,
     recordTrace: () => {},
@@ -3880,7 +3880,7 @@ test("answers an unclear message with one writable topic turn", async (context) 
   const paths = await fixture(context);
   const github = githubStub();
   const runs = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
@@ -3914,7 +3914,7 @@ test("answers an unclear message with one writable topic turn", async (context) 
 
 test("falls back to the fixed clarification text when the turn answers nothing", async (context) => {
   const paths = await fixture(context);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     runModel: async () => ({ text: "   " }),
@@ -3935,7 +3935,7 @@ test("prepends the service events of the topic once", async (context) => {
   notes.addNote({ sessionKey: topicSessionKey, text: report });
   notes.addNote({ sessionKey: otherSessionKey, text: "Un altre tema." });
   const messages = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
@@ -3976,7 +3976,7 @@ test("keeps the service events of a preparation that failed", async (context) =>
     sessionKey: topicSessionKey,
     text: "Pull request creada: https://example.test/pull/200",
   });
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4004,7 +4004,7 @@ test("keeps the service events when the sandbox preparation runs out of time", a
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4034,7 +4034,7 @@ test("never returns the service events once the model received them", async (con
   const notes = noteStore(context, paths);
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
   const prompts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4066,7 +4066,7 @@ test("carries the question of the model into the next turn of the same session",
   const notes = noteStore(context, paths);
   const prompts = [];
   let turn = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4115,7 +4115,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
   const github = githubStub();
   const image = pngImage({ width: 1200, height: 800 });
   const prompts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
@@ -4234,7 +4234,7 @@ test("keeps the service events when the Pi profile cannot be prepared", async (c
   // A file where the profile root belongs: the runtime fails before it claims
   // anything, so no prompt ever existed.
   writeFileSync(join(paths.state, "profiles"), "not a directory");
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
@@ -4256,7 +4256,7 @@ test("keeps the service events when the turn stops before the prompt", async (co
   const notes = noteStore(context, paths);
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
   const controller = new AbortController();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4285,7 +4285,7 @@ test("keeps the service events when Pi never starts", async (context) => {
   const notes = noteStore(context, paths);
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
   const config = configFor(paths);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: {
       ...config,
       model: {
@@ -4320,7 +4320,7 @@ test("keeps the service events when Pi never starts", async (context) => {
 test("keeps the clarification fallback when an image turn answers nothing", async (context) => {
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -4351,7 +4351,7 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
   const notes = noteStore(context, paths);
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
   const config = configFor(paths);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: {
       ...config,
       model: {
@@ -4388,7 +4388,7 @@ test("keeps the service events when the turn stops before the prompt is written"
   notes.addNote({ sessionKey: topicSessionKey, text: "Efecte pendent." });
   const config = configFor(paths);
   const controller = new AbortController();
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: {
       ...config,
       // A real executable: the child exists, and the prompt must still not be
@@ -4429,7 +4429,7 @@ test("keeps listing the stored image on a later turn without a new attachment", 
   const paths = await fixture(context);
   const github = githubStub();
   const prompts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     prepareAttachment: createAttachmentPreparation({
@@ -4482,7 +4482,7 @@ test("reuses a stored image without another download", async (context) => {
   const instructions = [];
   let downloads = 0;
   let turn = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     prepareAttachment: createAttachmentPreparation({
@@ -4535,7 +4535,7 @@ test("reuses a stored image without another download", async (context) => {
 
 test("removes the staged image when the model fails", async (context) => {
   const paths = await fixture(context);
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -4575,7 +4575,7 @@ test("finds the image already committed when a publication is retried", async (c
   const store = createAttachmentStore({ stateDirectory: paths.state });
   const traces = [];
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     attachmentStore: store,
@@ -4630,7 +4630,7 @@ test("sends the prepared image of the turn as image input of the prompt", async 
   const paths = await fixture(context);
   const image = pngImage({ width: 1200, height: 800 });
   let receivedImages = null;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -4659,7 +4659,7 @@ test("stores the downscaled image that the sandbox returned", async (context) =>
   const downscaled = pngImage({ width: 2400, height: 1600 });
   const scaledInputs = [];
   let prompt = null;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -4699,7 +4699,7 @@ test("skips the runtime preparation when the sandbox already installed the workt
   const original = pngImage({ width: 3000, height: 2000 });
   const downscaled = pngImage({ width: 2400, height: 1600 });
   const sandboxCommands = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -4731,7 +4731,7 @@ test("logs a post-publication store failure without changing the result", async 
   const image = pngImage({ width: 200, height: 100 });
   const store = createAttachmentStore({ stateDirectory: paths.state });
   const events = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     attachmentStore: {
@@ -4761,7 +4761,7 @@ test("omits the image that does not fit the prompt byte budget and names it", as
   const paths = await fixture(context);
   const image = pngImage({ width: 800, height: 600, filler: 4_500_000 });
   let prompt = null;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     prepareAttachment: createAttachmentPreparation({
@@ -4827,7 +4827,7 @@ async function runStaleTurn(
   const paths = await fixture(context);
   const github = githubStub();
   const gates = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -4940,7 +4940,7 @@ test("an ordinary turn synchronizes again when the publisher finds a newer main"
     }
     return push(options);
   };
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -4966,7 +4966,7 @@ async function conflictTurn(context, resolution) {
   const paths = await fixture(context);
   const github = githubStub();
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {
@@ -5115,7 +5115,7 @@ async function boundTopic(context, runnerOptions = {}) {
   const previews = [];
   const followUp = { result: undefined };
   const turn = { gateExitCode: 0, gate: undefined, model: undefined };
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
@@ -5502,7 +5502,7 @@ test("never stores the conflict question as a service note", async (context) => 
   const paths = await fixture(context);
   const sessionNotes = noteStore(context, paths);
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes,
@@ -5527,7 +5527,7 @@ for (const [path, expected] of [
   test(`the conflict turn on ${path} ${expected ? "skips" : "repeats"} the preparation`, async (context) => {
     const paths = await fixture(context);
     const prepared = [];
-    const runner = createProjectRunner({
+    const runner = createTestProjectRunner({
       config: configFor(paths),
       github: githubStub(),
       runModel: async ({ worktreePath, worktreePrepared }) => {
@@ -5547,7 +5547,7 @@ test("a resolved merge ignores the whitespace main brings", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   let turns = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
     runModel: async ({ worktreePath }) => {

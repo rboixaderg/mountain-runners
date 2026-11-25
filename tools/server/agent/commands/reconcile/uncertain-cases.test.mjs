@@ -12,13 +12,13 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { InspectableQueue as AdmissionQueue } from "../../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import {
   mergeSynchronizationRequestedAction,
   reconcileResolutions,
 } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
-import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
+import { InspectableMergeRequestStore } from "../../repository/test-support/merge-request-state.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
@@ -77,7 +77,9 @@ async function fixture(context) {
       maxPending: 10,
     }),
     ciWatches: new CiWatchStore(join(state, "ci-watch.sqlite")),
-    merges: new MergeRequestStore(join(state, "merge-request.sqlite")),
+    merges: new InspectableMergeRequestStore(
+      join(state, "merge-request.sqlite"),
+    ),
     previews: new PreviewRequestStore(join(state, "preview-request.sqlite")),
     topicJobs: new TopicJobStore(join(state, "topic-jobs.sqlite")),
   };

@@ -8,9 +8,7 @@
 //
 // A newer commit of a pull request supersedes the older pending watch of the
 // same pull request: it can neither be delivered nor describe the current head,
-// so it stops counting as unreported work. The report of a topic is ordered by
-// the publication of its commit, never by the moment a notice happened to be
-// delivered.
+// so it stops counting as unreported work.
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
@@ -49,8 +47,8 @@ export class CiWatchStore {
    * Register the notification for a confirmed publication. A newer commit of
    * the same pull request supersedes every older pending watch: that watch can
    * neither be delivered nor describe the head of the pull request any more, so
-   * it must not count as unreported work or become the last report. It is kept
-   * as `superseded` for the audit.
+   * it must not count as unreported work. It is kept as `superseded` for the
+   * audit.
    */
   add({ updateIdentifier, sessionKey, pullRequestNumber, commitSha }) {
     this.#transaction(() => {
@@ -93,20 +91,6 @@ export class CiWatchStore {
       .get(updateIdentifier)?.state;
   }
 
-  /**
-   * The topic that published the pull request last, taken from its most recent
-   * watch. It proves the service published the pull request and names the topic
-   * that currently owns it.
-   */
-  latestPublication(pullRequestNumber) {
-    return this.#database
-      .prepare(
-        `SELECT session_key FROM ci_watches WHERE pull_request_number = ?
-         ORDER BY update_identifier DESC LIMIT 1`,
-      )
-      .get(pullRequestNumber);
-  }
-
   /** The latest publication in the topic. */
   latestTopicPublication(sessionKey) {
     return this.#database
@@ -118,71 +102,19 @@ export class CiWatchStore {
   }
 
   /**
-   * The latest watch of every pull request this service published: the owner
-   * topic, whether that watch is also the newest row of its topic, and the
-   * result of the latest notice that was actually delivered.
-   *
-   * Only the newest publication of a topic has a local branch the service can
-   * read; the caller decides which pull requests still count as active work.
+   * The pull request of the newest publishing update of the topic, or null. A
+   * reconciled publication registers its watch late, so this orders by update
+   * and not by creation time.
    */
-  latestPublications() {
-    return this.#database
-      .prepare(
-        `SELECT owner.pull_request_number, owner.session_key,
-                (SELECT notice.result FROM ci_watches AS notice
-                 WHERE notice.pull_request_number = owner.pull_request_number
-                   AND notice.state = 'sent'
-                 ORDER BY notice.update_identifier DESC LIMIT 1) AS delivered_result,
-                owner.update_identifier = topic.latest_identifier AS is_owner_latest
-         FROM ci_watches AS owner
-         JOIN (
-           SELECT pull_request_number, MAX(update_identifier) AS update_identifier
-           FROM ci_watches GROUP BY pull_request_number
-         ) AS latest
-           ON latest.pull_request_number = owner.pull_request_number
-          AND latest.update_identifier = owner.update_identifier
-         JOIN (
-           SELECT session_key, MAX(update_identifier) AS latest_identifier
-           FROM ci_watches GROUP BY session_key
-         ) AS topic ON topic.session_key = owner.session_key
-         ORDER BY owner.pull_request_number`,
-      )
-      .all();
-  }
-
-  /**
-   * The commit this topic was last told about: the newest published watch that
-   * was delivered. Only a delivered notice counts, and its result says whether
-   * that commit was reported as green. The order is the publication order, never
-   * the delivery order: a slow older watch cannot overwrite a newer report.
-   */
-  lastReported(sessionKey) {
-    return this.#database
-      .prepare(
-        `SELECT pull_request_number, commit_sha, result FROM ci_watches
-         WHERE session_key = ? AND state = 'sent'
-         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
-      )
-      .get(sessionKey);
-  }
-
-  /**
-   * The newest delivered notice of one pull request. A topic that published
-   * several pull requests keeps one report per pull request, so a notice of
-   * another one never describes this pull request. The order is again the
-   * publication order, not the delivery order. `update_identifier` is the update
-   * that published the commit, so a later request of the same pull request can
-   * tell whether it came after this notice.
-   */
-  lastReportedForPullRequest({ sessionKey, pullRequestNumber }) {
-    return this.#database
-      .prepare(
-        `SELECT update_identifier, pull_request_number, commit_sha, result
-         FROM ci_watches
-         WHERE session_key = ? AND pull_request_number = ? AND state = 'sent'
-         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
-      )
-      .get(sessionKey, pullRequestNumber);
+  topicPullRequestNumber(sessionKey) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT pull_request_number FROM ci_watches
+           WHERE session_key = ? ORDER BY update_identifier DESC LIMIT 1`,
+        )
+        .get(sessionKey)?.pull_request_number ?? null
+    );
   }
 
   /**

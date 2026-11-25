@@ -5,7 +5,6 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runAgent } from "../runtime/agent.mjs";
-import { createResearchReview } from "../repository/research-review.mjs";
 import { agentSecrets } from "../config.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { registeredWorktree, runGit } from "../repository/trusted-git.mjs";
@@ -24,10 +23,7 @@ import {
   sandboxPrepareCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
-import {
-  createTopicPullRequestFinder,
-  createLiveTopicStateReader,
-} from "./topic-state.mjs";
+import { createLiveTopicStateReader } from "./topic-state.mjs";
 
 export function createProjectRunner({
   config,
@@ -45,9 +41,7 @@ export function createProjectRunner({
   }),
   sessionNotes,
   research,
-  researchReview = createResearchReview({
-    directory: join(config.paths.state, "research-review"),
-  }),
+  researchReview,
   recordTrace,
   // The service fixes the instant a post is published with: the sandbox clock
   // is not trusted for it.
@@ -116,24 +110,24 @@ export function createProjectRunner({
       config.paths.repository,
       context.worktreePath,
     );
-    const listFiles = () =>
-      runGit(
-        worktree,
-        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-        {
-          signal: context.signal,
-          maxBuffer: 64 * 1024 * 1024,
-          encoding: "buffer",
-        },
-      );
-    const listDeletedFiles = () =>
-      runGit(worktree, ["ls-files", "--deleted", "-z"], {
+    const files = await runGit(
+      worktree,
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      {
         signal: context.signal,
         maxBuffer: 64 * 1024 * 1024,
         encoding: "buffer",
-      });
-    const files = await listFiles();
-    const deletedFiles = await listDeletedFiles();
+      },
+    );
+    const deletedFiles = await runGit(
+      worktree,
+      ["ls-files", "--deleted", "-z"],
+      {
+        signal: context.signal,
+        maxBuffer: 64 * 1024 * 1024,
+        encoding: "buffer",
+      },
+    );
     const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
     const deleted = new Set(decoder.decode(deletedFiles).split("\0"));
     const inventory = `${decoder
@@ -159,14 +153,6 @@ export function createProjectRunner({
         signal: context.signal,
         documentationFilesPath,
       });
-      if (
-        result.exitCode === 0 &&
-        (!files.equals(await listFiles()) ||
-          !deletedFiles.equals(await listDeletedFiles()))
-      ) {
-        logger?.("documentation_inventory_changed");
-        result = { ...result, exitCode: 1 };
-      }
     } catch (error) {
       failure = error;
     }
@@ -183,11 +169,6 @@ export function createProjectRunner({
   // One installation salt names every worktree and every public branch suffix:
   // the workflow never derives a name from a Telegram identifier itself.
   const identifiers = openIdentifierNames(config.paths.state);
-  // The pull request this topic published last and still owns, from the CI
-  // watches: without them the service knows none.
-  const findTopicPullRequest = ciWatches
-    ? createTopicPullRequestFinder(ciWatches)
-    : undefined;
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
@@ -221,21 +202,15 @@ export function createProjectRunner({
     // The state of the topic every turn receives, from the service's own stores:
     // the model cannot read the pull request, its checks or the preview inside
     // the sandbox.
-    readTopicState:
-      ciWatches && mergeRequests
-        ? createLiveTopicStateReader({
-            github,
-            requiredChecks: config.github.requiredChecks,
-            logger,
-            ciWatches,
-            mergeRequests,
-            findTopicPullRequest,
-            repositoryName: config.github.repository,
-          })
-        : undefined,
-    registerCiWatch: ciWatches
-      ? createCiWatchRegistration({ store: ciWatches, logger })
-      : undefined,
+    readTopicState: createLiveTopicStateReader({
+      github,
+      requiredChecks: config.github.requiredChecks,
+      logger,
+      ciWatches,
+      mergeRequests,
+      repositoryName: config.github.repository,
+    }),
+    registerCiWatch: createCiWatchRegistration({ store: ciWatches, logger }),
     publishChange: createPublisher({
       github,
       repository: config.github.repository,

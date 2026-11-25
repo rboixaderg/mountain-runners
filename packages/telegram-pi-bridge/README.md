@@ -13,7 +13,6 @@ revisió i aprovació explícites. No és un servei validat per a producció.
 
 ```text
 src/
-├── index.mjs              API agregada, amb tots els mòduls
 ├── telegram/
 │   ├── index.mjs          entrada /telegram
 │   ├── api.mjs            client mínim de la Bot API
@@ -24,8 +23,7 @@ src/
 ├── sessions/
 │   ├── index.mjs          entrada /sessions
 │   ├── identity.mjs       tema de Telegram → identificador de sessió
-│   ├── queue.mjs          SQLite, deduplicació, ordre, offset i traça
-│   └── trace-reader.mjs   consulta de només lectura de la traça
+│   └── queue.mjs          SQLite, deduplicació, ordre, offset i traça
 └── pi/
     └── rpc.mjs            procés Pi i protocol JSONL
 ```
@@ -71,26 +69,19 @@ import { runPiPrompt } from "telegram-pi-bridge/pi";
 
 `/pi` no carrega Telegram ni SQLite. `/telegram` no carrega Pi ni SQLite;
 rep la cua i el callback d'execució de l'aplicació. `/sessions` carrega SQLite,
-però no Telegram ni Pi. L'entrada arrel `telegram-pi-bridge` conserva totes
-les exportacions i carrega tots els mòduls, inclòs SQLite.
+però no Telegram ni Pi.
 
-| Exportació                                                                | Responsabilitat                                                                                                                 |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `TelegramApi`, `TelegramApiError`                                         | `getMe`, `getUpdates`, `getChatMember`, `sendMessage`, `getFile` i `downloadFile`; errors de transport sense URL amb token      |
-| `TelegramFileTooLargeError`                                               | Descàrrega aturada pel límit de bytes, amb la mida coneguda perquè el refús la pugui dir                                        |
-| `AdmissionQueue`                                                          | Cua duradora SQLite amb límit de pendents i una execució global                                                                 |
-| `readTraceEntries`                                                        | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`           |
-| `AgentBridge`                                                             | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida        |
-| `parseSessionKey`, `sessionIdentifier`                                    | Identitat estable a partir de grup i tema                                                                                       |
-| `runPiPrompt`, `buildPiArguments`, `PiRunError`                           | Torn RPC, arguments explícits de Pi, `onPromptSent` per saber si el prompt s'ha escrit i errors tipats amb metadades de sortida |
-| `defaultBridgeMessages`                                                   | Missatges operatius en anglès; l'aplicació pot substituir-los                                                                   |
-| `instructionExcerpt`                                                      | Retall d'una línia de la instrucció per al missatge de recepció                                                                 |
-| `acceptedImageDocuments`, `attachmentOrigins`, `attachmentRefusalReasons` | Contracte de les imatges: tipus, extensions, MIME i origen (`message` o `reply`)                                                |
-| `maximumAttachmentBytes`, `maximumImagesPerInstruction`                   | Límit d'entrada de 20 MB i cinc imatges per missatge o àlbum                                                                    |
-| `imageDocumentRefusal`, `imageDocumentAttachment`                         | Refús d'un document declarat i descripció duradora de l'adjunt admès                                                            |
-| `largestPhotoSize`, `photoRefusal`, `photoAttachment`                     | Mida més gran d'una foto comprimida, refús per mida i descripció duradora com a JPEG                                            |
-| `classifyInstruction`, `classifyAlbum`, `isAlbumMember`, `AlbumCollector` | Classificació d'un missatge o d'un àlbum, detecció de membres d'àlbum i espera acotada abans d'admetre'l                        |
-| `declaredImageDocument`, `fileNameExtension`, `attachmentMegabytes`       | Confronament del nom i el MIME declarats, extensió del nom i format llegible de la mida                                         |
+| Exportació                                                                      | Responsabilitat                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TelegramApi`, `TelegramFileTooLargeError`                                      | `getMe`, `getUpdates`, `getChatMember`, `sendMessage`, `getFile` i `downloadFile`, amb errors de transport sense URL amb token; descàrrega aturada pel límit de bytes, amb la mida coneguda perquè el refús la pugui dir |
+| `AdmissionQueue`                                                                | Cua duradora SQLite amb límit de pendents i una execució global                                                                                                                                                          |
+| `AgentBridge`                                                                   | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida                                                                                                 |
+| `verifyMembership`                                                              | Comprova que un autor continua sent membre del grup                                                                                                                                                                      |
+| `parseSessionKey`, `sessionIdentifier`                                          | Identitat estable a partir de grup i tema                                                                                                                                                                                |
+| `runPiPrompt`, `PiRunError`                                                     | Torn RPC amb arguments explícits de Pi, `onPromptSent` per saber si el prompt s'ha escrit i errors tipats amb metadades de sortida                                                                                       |
+| `acceptedImageDocuments`, `attachmentRefusalReasons`, `attachmentRefusalDetail` | Contracte de les imatges: tipus, extensions i MIME, motius de refús i detall per a la traça                                                                                                                              |
+| `maximumAttachmentBytes`                                                        | Límit d'entrada de 20 MB per imatge                                                                                                                                                                                      |
+| `fileNameExtension`, `attachmentMegabytes`                                      | Extensió del nom i format llegible de la mida                                                                                                                                                                            |
 
 ### Pont de Telegram
 

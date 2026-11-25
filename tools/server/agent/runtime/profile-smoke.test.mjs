@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { preparePiProfile } from "./profile.mjs";
-import { buildPiArguments } from "telegram-pi-bridge/pi";
+import { piLaunchArguments } from "./test-support/pi-launch-arguments.mjs";
 import { projectPiOptions } from "./pi-adapter.mjs";
 
 const piCommand = process.env.MR_AGENT_PI_COMMAND;
@@ -70,7 +70,7 @@ for (const webEnabled of [false, true])
       });
       options.extensions.push(join(profile, "extensions", "zzz-test-probe.ts"));
       options.environment.PI_OFFLINE = "1";
-      const child = spawn(piCommand, buildPiArguments(options), {
+      const child = spawn(piCommand, await piLaunchArguments(options), {
         cwd: workspace,
         env: options.environment,
         stdio: webEnabled

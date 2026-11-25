@@ -11,7 +11,7 @@ import {
   isAlbumMember,
   verifyMembership,
 } from "./attribution.mjs";
-import { AlbumCollector } from "./albums.mjs";
+import { AlbumCollector, sessionKeyOf } from "./albums.mjs";
 import {
   attachmentMegabytes,
   attachmentRefusalDetail,
@@ -48,7 +48,7 @@ export const maximumAcknowledgementExcerptLength = 120;
 export const defaultMembershipTimeoutMilliseconds = 30 * 1000;
 
 // How long an album waits for the images that Telegram has not delivered yet.
-export const defaultAlbumWaitMilliseconds = 1000;
+const defaultAlbumWaitMilliseconds = 1000;
 
 // The number of already processed update identifiers kept in memory while the
 // offset waits for an unfinished album. A re-read of the same range skips them.
@@ -359,16 +359,6 @@ export class AgentBridge {
     }
   }
 
-  #sessionKeyOf(update) {
-    const message = update.message;
-    const chatIdentifier = message?.chat?.id;
-    const threadIdentifier = message?.message_thread_id;
-    if (chatIdentifier === undefined || typeof threadIdentifier !== "number") {
-      return null;
-    }
-    return `${chatIdentifier}:${threadIdentifier}`;
-  }
-
   #defer(update) {
     // A re-delivered update is already waiting: it never evicts an older entry.
     if (this.#deferred.has(update.update_id)) {
@@ -378,7 +368,7 @@ export class AgentBridge {
       const oldestUpdateIdentifier = this.#deferred.keys().next().value;
       const oldestUpdate = this.#deferred.get(oldestUpdateIdentifier);
       this.#deferred.delete(oldestUpdateIdentifier);
-      const sessionKey = this.#sessionKeyOf(oldestUpdate);
+      const sessionKey = sessionKeyOf(oldestUpdate);
       if (sessionKey !== null) {
         const watermark = this.#deferredOverflow.get(sessionKey);
         this.#deferredOverflow.set(sessionKey, {
@@ -399,7 +389,7 @@ export class AgentBridge {
   #oldestDeferredUpdateIdentifierForSession(sessionKey) {
     let oldest = this.#deferredOverflow.get(sessionKey)?.min ?? null;
     for (const update of this.#deferred.values()) {
-      if (this.#sessionKeyOf(update) !== sessionKey) {
+      if (sessionKeyOf(update) !== sessionKey) {
         continue;
       }
       if (oldest === null || update.update_id < oldest) {
@@ -422,7 +412,7 @@ export class AgentBridge {
       // the offset must still cover.
       for (const [updateIdentifier, update] of this.#deferred) {
         if (
-          this.#sessionKeyOf(update) === sessionKey &&
+          sessionKeyOf(update) === sessionKey &&
           updateIdentifier > watermark.min
         ) {
           this.#deferred.delete(updateIdentifier);
@@ -432,7 +422,7 @@ export class AgentBridge {
       return;
     }
     const deferred = [...this.#deferred.values()]
-      .filter((update) => this.#sessionKeyOf(update) === sessionKey)
+      .filter((update) => sessionKeyOf(update) === sessionKey)
       .toSorted((first, second) => first.update_id - second.update_id);
     for (const update of deferred) {
       if (signal?.aborted) {
@@ -479,7 +469,7 @@ export class AgentBridge {
   // The offset covers the whole evicted range, page by page: only the update
   // that reaches the last evicted identifier ends the watermark.
   #advanceDeferredOverflow(update) {
-    const sessionKey = this.#sessionKeyOf(update);
+    const sessionKey = sessionKeyOf(update);
     if (sessionKey === null) {
       return;
     }
@@ -622,7 +612,7 @@ export class AgentBridge {
       // A later message of an album's session waits behind the album; other
       // sessions are not delayed. An older message never waits for a newer
       // album: that album waits for it.
-      const sessionKey = this.#sessionKeyOf(update);
+      const sessionKey = sessionKeyOf(update);
       const oldestAlbum =
         this.#albums.oldestUpdateIdentifierForSession(sessionKey);
       if (oldestAlbum !== null && oldestAlbum < update.update_id) {

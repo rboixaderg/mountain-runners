@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import { AdmissionQueue } from "../../src/sessions/queue.mjs";
+import { InspectableQueue as AdmissionQueue } from "../inspectable-queue.mjs";
 
 function databasePath(context) {
   const directory = mkdtempSync(join(tmpdir(), "telegram-pi-admission-"));

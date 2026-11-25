@@ -11,7 +11,7 @@ import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { buildPiArguments, runPiPrompt } from "../../src/pi/rpc.mjs";
+import { runPiPrompt } from "../../src/pi/rpc.mjs";
 
 function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "telegram-pi-pi-"));
@@ -233,8 +233,26 @@ test("fails the turn when Pi refuses another command before the prompt response"
   );
 });
 
-test("denies tools and resources unless the caller explicitly selects them", () => {
-  const argumentsList = buildPiArguments({ model: "example/model" });
+/** The arguments Pi would be launched with; nothing is started. */
+async function launchArguments(options) {
+  let launched;
+  await assert.rejects(
+    runPiPrompt({
+      ...options,
+      profileDirectory: "/synthetic/profile",
+      message: "question",
+      spawnImpl: (_command, argumentsList) => {
+        launched = argumentsList;
+        throw new Error("synthetic launch");
+      },
+    }),
+    /synthetic launch/u,
+  );
+  return launched;
+}
+
+test("denies tools and resources unless the caller explicitly selects them", async () => {
+  const argumentsList = await launchArguments({ model: "example/model" });
   for (const flag of [
     "--no-tools",
     "--no-extensions",
@@ -247,22 +265,20 @@ test("denies tools and resources unless the caller explicitly selects them", () 
     assert.equal(argumentsList.includes(flag), true, flag);
   }
   for (const tool of ["+bash", "*", "read,bash"]) {
-    assert.throws(
-      () => buildPiArguments({ model: "example/model", tools: [tool] }),
+    await assert.rejects(
+      launchArguments({ model: "example/model", tools: [tool] }),
       /explicit names/u,
     );
   }
-  assert.throws(
-    () =>
-      buildPiArguments({
-        model: "example/model",
-        extensions: ["./untrusted.ts"],
-      }),
+  await assert.rejects(
+    launchArguments({
+      model: "example/model",
+      extensions: ["./untrusted.ts"],
+    }),
     /absolute/u,
   );
-  assert.throws(
-    () =>
-      buildPiArguments({ model: "example/model", sessionIdentifier: "topic7" }),
+  await assert.rejects(
+    launchArguments({ model: "example/model", sessionIdentifier: "topic7" }),
     /sessionDirectory/u,
   );
 });

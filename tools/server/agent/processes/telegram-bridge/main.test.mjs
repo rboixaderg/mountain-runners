@@ -15,6 +15,7 @@ import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
 import { resolveUncertainCase } from "../../commands/reconcile/uncertain-cases.mjs";
+import { mergeRequestState } from "../../repository/test-support/merge-request-state.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
@@ -101,6 +102,7 @@ test("stops the CI watcher even when the bridge fails without an abort", async (
     runBridgeWithCiWatcher({
       bridge,
       ciWorker,
+      previewWorker: { async run() {} },
       signal: controller.signal,
       abort: () => controller.abort(),
       logger: () => {},
@@ -127,6 +129,7 @@ test("keeps the bridge running when the watcher fails", async () => {
   await runBridgeWithCiWatcher({
     bridge,
     ciWorker,
+    previewWorker: { async run() {} },
     signal: controller.signal,
     abort: () => controller.abort(),
     logger: (event) => events.push(event),
@@ -596,7 +599,10 @@ test("completes every local recovery before refusing the start", async (context)
   );
 
   const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
-  assert.equal(merges.state(40), "uncertain");
+  assert.equal(
+    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
+    "uncertain",
+  );
   merges.close();
   const traceSource = new AdmissionQueue(join(statePath, "admission.sqlite"), {
     maxPending: 10,
@@ -743,7 +749,10 @@ test("keeps an interrupted merge uncertain, attributed in the trace, and still s
     runner: async () => ({}),
   });
 
-  assert.equal(service.mergeRequests.state(40), "uncertain");
+  assert.equal(
+    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
+    "uncertain",
+  );
   assert.equal(sent.length, 1);
   assert.ok(
     sent[0].text.includes(`\`/merge 200 ${"a".repeat(40)}\``),
@@ -781,7 +790,10 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
     runner: async () => ({}),
   });
 
-  assert.equal(service.mergeRequests.state(40), "merged");
+  assert.equal(
+    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
+    "merged",
+  );
   assert.equal(sent.length, 1);
   assert.match(sent[0].text, /proposta #200 fusionada/u);
   assert.equal(
@@ -1019,22 +1031,6 @@ test("a newer publication without a preview record invalidates the earlier notic
         commitSha: "a".repeat(40),
       });
       ciWatches.finishSend(11, "success");
-    },
-  });
-
-  assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
-});
-
-test("the former topic cannot merge a pull request now owned by another topic", async (context) => {
-  const { replies, merges } = await runMergeCommand(context, {
-    prepare: ({ ciWatches }) => {
-      ciWatches.add({
-        updateIdentifier: 11,
-        sessionKey: "-1001234567890:8",
-        pullRequestNumber: 200,
-        commitSha: "a".repeat(40),
-      });
     },
   });
 

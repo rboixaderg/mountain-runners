@@ -291,21 +291,6 @@ export class AdmissionQueue {
     });
   }
 
-  status(updateIdentifier) {
-    return this.#database
-      .prepare("SELECT status FROM instructions WHERE update_identifier = ?")
-      .get(updateIdentifier)?.status;
-  }
-
-  pendingCount() {
-    const { count } = this.#database
-      .prepare(
-        "SELECT COUNT(*) AS count FROM instructions WHERE status = 'pending'",
-      )
-      .get();
-    return count;
-  }
-
   /**
    * True while an instruction is running or has an unknown external result. A
    * caller that performs its own external work must not start it in this state.

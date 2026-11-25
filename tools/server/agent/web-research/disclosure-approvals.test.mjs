@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { test } from "node:test";
-import {
-  createDisclosureApprovals,
-  disclosureApprovalReply,
-  disclosureCancellationReply,
-} from "./disclosure-approvals.mjs";
+import { createDisclosureApprovals } from "./disclosure-approvals.mjs";
 
 const question = {
   sessionKey: "-100123:7",
@@ -21,7 +17,6 @@ function reply(overrides = {}) {
     sessionKey: question.sessionKey,
     authorIdentifier: question.authorIdentifier,
     replyMessageIdentifier: question.questionMessageIdentifier,
-    instruction: disclosureApprovalReply,
     ...overrides,
   };
 }
@@ -52,19 +47,9 @@ test("an exact attributed reply consumes only the immutable request offered", ()
   assert.equal(approvals.take(reply()), null);
 });
 
-test("only the exact fixed reply from the original author and topic approves", () => {
+test("only a reply from the original author and topic takes the request", () => {
   const approvals = createDisclosureApprovals();
   assert.equal(approvals.offer(question), true);
-  for (const instruction of [
-    "Sí",
-    "Si, envia-ho",
-    "sí, envia-ho",
-    "Sí, envia-ho ara",
-    " Sí, envia-ho",
-    "Cancel·la l’enviament",
-  ]) {
-    assert.equal(approvals.take(reply({ instruction })), null, instruction);
-  }
   for (const mismatch of [
     { sessionKey: "-100123:8" },
     { authorIdentifier: 43 },
@@ -122,18 +107,6 @@ test("reoffering a question with a changed request fails closed", () => {
   const approvals = createDisclosureApprovals();
   assert.equal(approvals.offer(question), true);
   assert.equal(approvals.offer({ ...question, input: "changed query" }), false);
-  assert.equal(approvals.take(reply()), null);
-});
-
-test("the exact cancellation consumes the offer and cannot be replayed", () => {
-  const approvals = createDisclosureApprovals();
-  assert.equal(approvals.offer(question), true);
-  assert.equal(
-    approvals.take(reply({ instruction: disclosureCancellationReply })),
-    null,
-  );
-  assert.equal(approvals.take(reply()), null);
-  assert.equal(approvals.offer(question), false);
   assert.equal(approvals.take(reply()), null);
 });
 

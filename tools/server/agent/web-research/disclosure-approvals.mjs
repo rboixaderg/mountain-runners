@@ -102,19 +102,9 @@ export function createDisclosureApprovals({
     return true;
   }
 
-  function take({
-    sessionKey,
-    authorIdentifier,
-    replyMessageIdentifier,
-    instruction,
-  }) {
+  /** Consume the retained request; the caller decides what the reply means. */
+  function take({ sessionKey, authorIdentifier, replyMessageIdentifier }) {
     prune(now());
-    if (
-      instruction !== disclosureApprovalReply &&
-      instruction !== disclosureCancellationReply
-    ) {
-      return null;
-    }
     if (
       typeof sessionKey !== "string" ||
       !Number.isSafeInteger(authorIdentifier) ||
@@ -131,7 +121,7 @@ export function createDisclosureApprovals({
     if (!entry || entry.request === null) return null;
     const request = entry.request;
     entry.request = null;
-    return instruction === disclosureApprovalReply ? request : null;
+    return request;
   }
 
   return { offer, take };

@@ -11,7 +11,6 @@ import { PiRunError } from "telegram-pi-bridge/pi";
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
 import { removeAttachmentDirectory } from "../attachments/destination.mjs";
-import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 import { needsDownscale } from "../attachments/scale.mjs";
 import {
   assertWorkBranch,
@@ -124,19 +123,17 @@ export function createInstructionRunner({
   // The commit the current private review of a job pins, or null.
   reviewedCommit,
   prepareAttachment,
-  scaleAttachments = () => ({
-    refusal: { reason: attachmentRefusalReasons.scaleFailed },
-  }),
+  scaleAttachments,
   attachmentStore,
   // Durable conversation state of the topic: the effects it has not been told
-  // yet. Without it the service keeps none.
+  // yet.
   sessionNotes,
   topicJobs,
   readBoundPullRequest,
   repositoryName,
   // The state of the topic every turn receives, read from the same stores. The
   // model cannot read it from the sandbox.
-  readTopicState = undefined,
+  readTopicState,
   recordTrace = () => {},
   logger = () => {},
 }) {
@@ -150,9 +147,9 @@ export function createInstructionRunner({
       return;
     }
     if (promptSent) {
-      safelyWithNotes(() => sessionNotes?.deliver(claimedNotes));
+      safelyWithNotes(() => sessionNotes.deliver(claimedNotes));
     } else {
-      safelyWithNotes(() => sessionNotes?.release(claimedNotes));
+      safelyWithNotes(() => sessionNotes.release(claimedNotes));
     }
   }
 
@@ -176,16 +173,11 @@ export function createInstructionRunner({
    * The state of the topic the model cannot read inside the sandbox. A state
    * that cannot be read never stops a turn: it is logged and the turn runs
    * without the block.
-   * A turn that continues another topic's pull request reports that pull
-   * request and the facts of the topic that owns it.
    */
   async function topicStateOf(
     sessionKey,
     { continuedPullRequestNumber, signal },
   ) {
-    if (readTopicState === undefined) {
-      return null;
-    }
     try {
       return await readTopicState(sessionKey, {
         continuedPullRequestNumber,
@@ -568,11 +560,13 @@ export function createInstructionRunner({
     sessionKey,
     title,
     topicState,
+    fetchedMainHead,
     signal,
   }) {
     const synchronization = await synchronizeWithMain({
       worktree,
       pendingWorkMessage: title,
+      fetchedMainHead,
       signal,
     });
     const { mainHead } = synchronization;
@@ -647,7 +641,12 @@ export function createInstructionRunner({
     signal,
   }) {
     for (let attempt = 0; attempt < maximumSynchronizations; attempt += 1) {
-      const synchronized = await synchronizeAndCheck(synchronization);
+      const synchronized = await synchronizeAndCheck(
+        // A later attempt follows a newer `main`, so it is fetched again.
+        attempt === 0
+          ? synchronization
+          : { ...synchronization, fetchedMainHead: undefined },
+      );
       if (synchronized.report) {
         return { failure: synchronized };
       }
@@ -664,9 +663,7 @@ export function createInstructionRunner({
         }),
         repair: publication.repair,
         validated: { commit, base: synchronized.mainHead },
-        ...(isResearchAffected
-          ? { researchJobId: publication.researchJobId }
-          : {}),
+        researchJobId: publication.researchJobId,
         signal,
         onPublicationStarted,
       });
@@ -931,27 +928,24 @@ export function createInstructionRunner({
         const merged = await requestMerge(request, mergeCommand, { signal });
         return { ...merged, report: ignoringAttachment(merged.report) };
       }
-      if (requestMergeConfirmation !== undefined) {
-        const confirmation = requestMergeConfirmation.contextualIntent(request);
-        if (confirmation !== null) {
-          return requestMergeConfirmation.handleConfirmation(
-            request,
-            confirmation,
-            { signal },
-          );
-        }
+      const confirmation = requestMergeConfirmation.contextualIntent(request);
+      if (confirmation !== null) {
+        return requestMergeConfirmation.handleConfirmation(
+          request,
+          confirmation,
+          { signal },
+        );
       }
       const resumedResearch = await research?.resume(request, { signal });
       if (resumedResearch?.report) {
         return { outcome: "answered", report: resumedResearch.report };
       }
-      const publishReviewed =
-        isResearchAffected && request.instruction === "/publica-revisio";
+      const publishReviewed = request.instruction === "/publica-revisio";
       const topic = await readTopicWorktree(worktreeName, { signal });
-      const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
+      const binding = topicJobs.bindingOf(request.sessionKey);
       // The topic state decides whether the job is new. A queue row that never
       // reached a turn (rejected, merge or confirmation) leaves none.
-      prepareResearchJob?.(worktreeName, {
+      prepareResearchJob(worktreeName, {
         newJob: !topic.worktree && binding === null,
       });
       if (publishReviewed && !isResearchAffected(worktreeName)) {
@@ -1007,7 +1001,6 @@ export function createInstructionRunner({
       let promptImages = [];
       let worktreePrepared = false;
       const hasStoredAttachments =
-        attachmentStore !== undefined &&
         attachmentStore.list(worktreeName).length > 0;
       if (
         !publishReviewed &&
@@ -1046,11 +1039,7 @@ export function createInstructionRunner({
       const claimServiceNotes = () => {
         if (claimedNotes === null) {
           claimedNotes =
-            sessionNotes === undefined
-              ? []
-              : (safelyWithNotes(() =>
-                  sessionNotes.claim(request.sessionKey),
-                ) ?? []);
+            safelyWithNotes(() => sessionNotes.claim(request.sessionKey)) ?? [];
         }
         return claimedNotes.map((note) => note.text);
       };
@@ -1133,17 +1122,15 @@ export function createInstructionRunner({
       // images reached the worktree outside it, including the ones a previous
       // attempt already committed and this publication retries. A published
       // change closes them.
-      const attachmentPaths =
-        attachmentStore === undefined
-          ? []
-          : [
-              ...(await listChangedPaths(worktree, { signal })),
-              ...(await committedPaths(worktree, { signal })),
-            ];
-      const usedAttachmentNames =
-        attachmentStore === undefined
-          ? []
-          : attachmentStore.used(worktreeName, worktree.path, attachmentPaths);
+      const attachmentPaths = [
+        ...(await listChangedPaths(worktree, { signal })),
+        ...(await committedPaths(worktree, { signal })),
+      ];
+      const usedAttachmentNames = attachmentStore.used(
+        worktreeName,
+        worktree.path,
+        attachmentPaths,
+      );
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
       const plainAnswer = stripChangeSummary(modelResult.text);
@@ -1168,7 +1155,7 @@ export function createInstructionRunner({
           report: answer || instructionReports.clarification,
         };
       }
-      const summary = isResearchAffected?.(worktreeName)
+      const summary = isResearchAffected(worktreeName)
         ? null
         : parseChangeSummary(modelResult.text);
       const title = fallbackTitle({ summary });
@@ -1262,7 +1249,7 @@ export function createInstructionRunner({
       }
       // Record the first confirmed publication. An existing binding is never
       // replaced: later turns of the topic continue its recorded branch.
-      if (topicJobs && topicJobs.bindingOf(request.sessionKey) === null) {
+      if (topicJobs.bindingOf(request.sessionKey) === null) {
         topicJobs.bind({
           sessionKey: request.sessionKey,
           branch,
@@ -1283,7 +1270,7 @@ export function createInstructionRunner({
       // The image is part of a published change: it no longer needs to stay in
       // the topic store. A refused publication keeps it for the next turn. The
       // publication is already done, so a bookkeeping failure only logs.
-      if (attachmentStore !== undefined && usedAttachmentNames.length > 0) {
+      if (usedAttachmentNames.length > 0) {
         try {
           attachmentStore.remove(worktreeName, usedAttachmentNames);
         } catch (error) {
@@ -1295,7 +1282,7 @@ export function createInstructionRunner({
       }
       // The watch is durable before the report is sent, and it never waits for
       // the CI of the commit: the queue keeps executing other instructions.
-      const ciWatch = registerCiWatch?.({
+      const ciWatch = registerCiWatch({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         pullRequestNumber: publication.pullRequest.number,
@@ -1304,7 +1291,7 @@ export function createInstructionRunner({
       // The `preview` label makes the publisher build every pushed head, so the
       // topic receives the address of this commit without asking for it. A
       // pull request without the label simply has no preview to report.
-      followPreview?.({
+      followPreview({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         authorIdentifier: request.authorIdentifier,
@@ -1396,7 +1383,7 @@ export function createInstructionRunner({
     const failed = (failure) => ({ outcome: "failed", ...failure });
     try {
       signal?.throwIfAborted();
-      const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
+      const binding = topicJobs.bindingOf(request.sessionKey);
       if (
         binding === null ||
         binding.pullRequestNumber !== pullRequestNumber ||
@@ -1439,7 +1426,7 @@ export function createInstructionRunner({
         // but a private review may pin it.
         if (
           !(await addsOnlyMainMerges(worktree, { commit, signal })) ||
-          (await reviewedCommit?.(worktreeName)) ===
+          (await reviewedCommit(worktreeName)) ===
             (await headCommit(worktree, { signal }))
         ) {
           return failed(
@@ -1485,6 +1472,7 @@ export function createInstructionRunner({
           sessionKey: request.sessionKey,
           title,
           topicState,
+          fetchedMainHead: mainHead,
           signal,
         },
         publication: {
@@ -1525,13 +1513,13 @@ export function createInstructionRunner({
         });
       }
       unpublishedWorktree = null;
-      const ciWatch = registerCiWatch?.({
+      const ciWatch = registerCiWatch({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
       });
-      const previewTracked = followPreview?.({
+      const previewTracked = followPreview({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         authorIdentifier: request.authorIdentifier,
@@ -1610,7 +1598,7 @@ export function createInstructionRunner({
       noteText = `${result.report}\n${detail}`;
       result.report = answerWithNotices(answer, result.report);
     }
-    if (sessionNotes === undefined || typeof result.report !== "string") {
+    if (typeof result.report !== "string") {
       return result;
     }
     const effectKey = `instruction:${request.updateIdentifier}`;

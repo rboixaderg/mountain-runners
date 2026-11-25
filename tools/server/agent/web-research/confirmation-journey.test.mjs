@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { InspectableQueue as AdmissionQueue } from "../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import { AgentBridge, verifyMembership } from "telegram-pi-bridge/telegram";
 import { createWebResearch } from "./broker.mjs";
 import { createTopicResearch } from "./topic-research.mjs";
@@ -11,7 +14,11 @@ test("a confirmed Telegram search drains the queue, rechecks membership and tain
     botUsername: "example_bot",
     botIdentifier: 12,
   };
-  const queue = new AdmissionQueue(":memory:", { maxPending: 10 });
+  const directory = mkdtempSync(join(tmpdir(), "mr-confirmation-journey-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const queue = new AdmissionQueue(join(directory, "admission.sqlite"), {
+    maxPending: 10,
+  });
   context.after(() => queue.close());
   const events = [];
   const sent = [];

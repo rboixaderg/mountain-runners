@@ -653,7 +653,7 @@ export function buildTopicStateText(topicState) {
     : live.preview;
   return [
     topicStateHeader,
-    `- Pull request: ${live.url}; ${live.state}${live.fromAnotherTopic ? "; owned by another topic" : ""}.`,
+    `- Pull request: ${live.url}; ${live.state}.`,
     `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
     `- Work newer than the last report is still being checked: ${live.hasUnreportedWork ? "yes" : "no"}.`,
     `- Preview: ${preview}.`,

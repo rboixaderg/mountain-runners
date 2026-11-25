@@ -937,12 +937,6 @@ test("reports a pull request API failure without exposing the token", async () =
   );
 });
 
-test("rejects a base branch other than main at construction", () => {
-  assert.throws(() => trust({ baseBranch: "develop" }), {
-    message: /main base branch/u,
-  });
-});
-
 test("rejects an invalid branch before calling the API", async () => {
   const calls = [];
   const component = trust({

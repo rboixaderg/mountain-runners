@@ -308,12 +308,6 @@ export class MergeRequestStore {
     );
   }
 
-  state(updateIdentifier) {
-    return this.#database
-      .prepare("SELECT state FROM merge_requests WHERE update_identifier = ?")
-      .get(updateIdentifier)?.state;
-  }
-
   /**
    * The newest request of a topic for one pull request: the state its next turn
    * reports. A request of another pull request never describes this one.

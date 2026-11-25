@@ -282,7 +282,6 @@ export function readAgentConfig(environment = process.env) {
     github: {
       token: requiredValue(environment, "MOUNTAIN_AGENT_GITHUB_TOKEN"),
       repository,
-      baseBranch,
       requiredChecks: readRequiredChecks(environment),
     },
     model: {

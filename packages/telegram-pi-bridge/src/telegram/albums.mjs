@@ -27,7 +27,7 @@ const defaultMaximumWaitMilliseconds = 5000;
 const maximumPendingGroups = 200;
 const maximumUpdatesPerGroup = 20;
 
-function sessionKeyOf(update) {
+export function sessionKeyOf(update) {
   const message = update.message;
   const chatIdentifier = message?.chat?.id;
   const threadIdentifier = message?.message_thread_id;

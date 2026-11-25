@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { InspectableMergeRequestStore } from "../repository/test-support/merge-request-state.mjs";
 import { openDatabase } from "../repository/sqlite.mjs";
 import {
   createMergeRequests,
@@ -138,7 +138,7 @@ function setup(context, { github = fakeGithub() } = {}) {
   const storePath = join(directory, "merge.sqlite");
   const stores = [];
   const openStore = () => {
-    const store = new MergeRequestStore(storePath);
+    const store = new InspectableMergeRequestStore(storePath);
     stores.push(store);
     return store;
   };
