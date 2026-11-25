@@ -20,6 +20,11 @@ import {
 import { PublicationRuleError } from "./secret-scan.mjs";
 import { GitInterruptedError, primaryRepository } from "./trusted-git.mjs";
 import { createBranch, ensureSessionWorktree } from "./worktrees.mjs";
+import {
+  createGitRepository,
+  git,
+  useGitHubRemote,
+} from "./test-support/git-repository.mjs";
 
 const executeFile = promisify(execFile);
 const repository = "rboixaderg/mountain-runners";
@@ -134,55 +139,14 @@ test("research candidate pins the remote ref and does not turn remote errors int
   await assert.rejects(github.researchCandidate(parameters), /HTTP 500/u);
 });
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function repositoryFixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-agent-github-"));
-  context.after(() =>
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    }),
-  );
-
-  const origin = join(directory, "origin.git");
-  const clone = join(directory, "repository");
+  const paths = await createGitRepository(context, "mr-agent-github-", {
+    "README.md": "synthetic\n",
+    ".github/workflows/trusted.yml": "synthetic baseline workflow\n",
+  });
+  await useGitHubRemote(paths, repository);
+  const { directory, origin, repository: clone } = paths;
   const worktreeRoot = join(directory, "worktrees");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, clone]);
-  writeFileSync(join(clone, "README.md"), "synthetic\n");
-  mkdirSync(join(clone, ".github", "workflows"), { recursive: true });
-  writeFileSync(
-    join(clone, ".github", "workflows", "trusted.yml"),
-    "synthetic baseline workflow\n",
-  );
-  await git(clone, ["add", "--all"]);
-  await git(clone, ["commit", "-m", "chore: initial"]);
-  await git(clone, ["push", "origin", "main"]);
-  await git(clone, [
-    "remote",
-    "set-url",
-    "origin",
-    `https://github.com/${repository}.git`,
-  ]);
-  await git(clone, [
-    "config",
-    `url.${origin}.insteadOf`,
-    `https://github.com/${repository}.git`,
-  ]);
   return { directory, origin, clone, worktreeRoot };
 }
 

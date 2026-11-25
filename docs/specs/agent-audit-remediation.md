@@ -117,7 +117,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T21   | Completada | -             | Quatre defectes d'imatge corregits sense moure els originals             | PR 21   | [#332](https://github.com/rboixaderg/mountain-runners/pull/332) |
 | T22   | Completada | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | [#331](https://github.com/rboixaderg/mountain-runners/pull/331) |
 | T23   | Completada | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | [#338](https://github.com/rboixaderg/mountain-runners/pull/338) |
-| T24   | Pendent    | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
+| T24   | Completada | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | [#340](https://github.com/rboixaderg/mountain-runners/pull/340) |
 | T25   | Completada | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | [#315](https://github.com/rboixaderg/mountain-runners/pull/315) |
 | T26   | Completada | T25           | Decisions de l'esmena implementades                                      | PR 26   | [#322](https://github.com/rboixaderg/mountain-runners/pull/322) |
 | T27   | Pendent    | T18, T26      | Una sola base de dades amb una fila per commit publicat                  | PR 27   | -                                                               |

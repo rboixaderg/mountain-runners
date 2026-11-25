@@ -2,14 +2,11 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   existsSync,
-  mkdtempSync,
   readFileSync,
   realpathSync,
-  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
@@ -30,42 +27,16 @@ import {
 } from "./worktrees.mjs";
 import { runGit } from "./trusted-git.mjs";
 import { createNestedRepository } from "./test-support/nested-repository.mjs";
+import { createGitRepository, git } from "./test-support/git-repository.mjs";
 
 const executeFile = promisify(execFile);
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function repositoryFixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-agent-repository-"));
-  context.after(() =>
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    }),
+  const { directory, origin, repository } = await createGitRepository(
+    context,
+    "mr-agent-repository-",
   );
-
-  const origin = join(directory, "origin.git");
-  const repository = join(directory, "repository");
   const worktreeRoot = join(directory, "worktrees");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "synthetic\n");
-  await git(repository, ["add", "README.md"]);
-  await git(repository, ["commit", "-m", "chore: initial"]);
-  await git(repository, ["push", "origin", "main"]);
 
   return { directory, origin, repository, worktreeRoot };
 }

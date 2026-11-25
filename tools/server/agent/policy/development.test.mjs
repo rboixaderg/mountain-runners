@@ -22,6 +22,7 @@ import {
   ciWatchOutcomes,
   formatMadridInstant,
   mergedReviewLineText,
+  finishedTopicReport,
   mergeReports,
   parseChangeSummary,
   fallbackTitle,
@@ -848,4 +849,67 @@ test("quotes line separators and redacts secrets in named paths", () => {
     namedPaths(["a\u2028b\u2029c\u0085", "dir/token"], ["token"]),
     '"a\\u2028b\\u2029c\\u0085", "dir/***"',
   );
+});
+
+// Consumers compare against the policy exports, so the copy is pinned here.
+test("pins the fixed copy of the merge confirmation and of a finished topic", () => {
+  assert.equal(
+    mergeReports.question,
+    "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
+  );
+  assert.equal(
+    mergeReports.invalidQuestion,
+    "Aquesta confirmació no és vàlida. No s'ha fusionat res. Torna a respondre «La feina està validada» a l'últim avís de la preview.",
+  );
+  assert.equal(
+    mergeReports.alreadyHandled,
+    "Aquesta petició de merge ja s'havia atès. No s'ha fusionat res de nou.",
+  );
+  assert.equal(
+    mergeReports.infrastructureChanges({
+      reviewUrl: "https://example.test/1",
+    }),
+    "Aquest canvi toca les eines o la configuració del projecte, i ho ha de revisar la persona que manté el servei. No s'ha publicat res.\nEnllaç per a revisió: https://example.test/1",
+  );
+  assert.equal(
+    finishedTopicReport,
+    "Aquesta feina ja està acabada. Obre un tema nou per a una altra feina.",
+  );
+});
+
+test("every merge refusal says that nothing was merged", () => {
+  const target = { pullRequestNumber: 200, requestedNumber: 201 };
+  for (const key of [
+    "staleQuestion",
+    "invalidQuestion",
+    "usage",
+    "membershipRevoked",
+    "membershipUnavailable",
+    "noDeliveredPreview",
+    "otherPullRequest",
+    "commitMismatch",
+    "newerWork",
+    "uncertainOpen",
+    "uncertainClosed",
+    "uncertainCleared",
+    "notOpen",
+    "draft",
+    "notMainBase",
+    "notMainRepository",
+    "headMoved",
+    "previewRevoked",
+    "noPreviewLabel",
+    "checksNotGreen",
+    "behind",
+    "notClean",
+    "unreadable",
+    "failed",
+  ]) {
+    const report = mergeReports[key];
+    assert.match(
+      typeof report === "function" ? report(target) : report,
+      /No s'ha fusionat res/u,
+      key,
+    );
+  }
 });

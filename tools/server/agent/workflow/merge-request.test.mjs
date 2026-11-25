@@ -4,17 +4,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { verifyMembership } from "telegram-pi-bridge/telegram";
+import { mergeReports } from "../policy/development.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
 import { InspectableMergeRequestStore } from "../repository/test-support/merge-request-state.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { createMergeRequests, parseMergeCommand } from "./merge-request.mjs";
+import {
+  deliveredPreviews,
+  mergedPullRequest,
+  mergeGithub,
+  openPullRequest,
+} from "./test-support/github.mjs";
+import { recordingTelegram } from "./test-support/telegram.mjs";
 
 const repository = "rboixaderg/mountain-runners";
 const groupIdentifier = "-1001234567890";
 const commit = "a".repeat(40);
 const mergeCommit = "b".repeat(40);
 const sessionKey = "-1001234567890:7";
+const mergedTarget = {
+  pullRequestNumber: 200,
+  mergeCommit,
+  pullRequestUrl: `https://github.com/${repository}/pull/200`,
+};
 
 function fixture(context, { now } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-merge-request-"));
@@ -65,139 +78,16 @@ function deliveredPreviewRow({
   };
 }
 
-function deliveredPreviews() {
-  const rows = new Map();
-  return {
-    deliver(topicSessionKey, row = deliveredPreviewRow()) {
-      rows.set(topicSessionKey, row);
-    },
-    clear(topicSessionKey) {
-      rows.delete(topicSessionKey);
-    },
-    find(topicSessionKey) {
-      return rows.get(topicSessionKey);
-    },
-  };
-}
-
-function fakeGithub(state = {}) {
-  const github = {
-    merges: [],
-    reads: 0,
-    checkReads: 0,
-    pullRequest: openPullRequest(),
-    pullRequestSequence: null,
-    // The pull requests of a scenario with more than one published pull request.
-    pullRequests: null,
-    checkRuns: [
-      { name: "Validate", status: "completed", conclusion: "success" },
-    ],
-    statuses: [],
-    readError: null,
-    mergeError: null,
-    mergeResponse: { mergeCommitSha: mergeCommit },
-    beforeMerge: null,
-    changedPaths: ["apps/web/src/content/posts/la-cursa.yaml"],
-    changedPathsError: null,
-    changedPathsCommits: [],
-    // Entries that differ from a regular file, by path.
-    treeModes: {},
-    treeModesError: null,
-    removedPaths: [],
-    ...state,
-    async getPullRequest({ number }) {
-      github.reads += 1;
-      if (github.readError) throw github.readError;
-      if (github.pullRequestSequence) {
-        return github.pullRequestSequence.shift() ?? github.pullRequest;
-      }
-      if (github.pullRequests !== null) {
-        return github.pullRequests[number];
-      }
-      assert.equal(number, 200, "only the bound pull request may be read");
-      return github.pullRequest;
-    },
-    async getCommitCheckRuns() {
-      github.checkReads += 1;
-      return github.checkRuns;
-    },
-    async getCommitStatuses() {
-      return github.statuses;
-    },
-    async getChangedPaths({ commit: pinnedCommit }) {
-      github.changedPathsCommits.push(pinnedCommit);
-      if (github.changedPathsError) throw github.changedPathsError;
-      return {
-        paths: github.changedPaths,
-        presentPaths: github.changedPaths.filter(
-          (path) => !github.removedPaths.includes(path),
-        ),
-      };
-    },
-    async getTreeModes({ commit: pinnedCommit }) {
-      assert.equal(pinnedCommit, github.changedPathsCommits.at(-1));
-      if (github.treeModesError) throw github.treeModesError;
-      return new Map(
-        github.changedPaths
-          .filter((path) => !github.removedPaths.includes(path))
-          .map((path) => [path, github.treeModes[path] ?? "100644"]),
-      );
-    },
-    async mergePullRequest({ number, sha }) {
-      if (github.pullRequests === null) {
-        assert.equal(number, 200, "only the bound pull request may be merged");
-      }
-      github.beforeMerge?.();
-      github.merges.push({ number, sha });
-      if (github.mergeError) throw github.mergeError;
-      return github.mergeResponse;
-    },
-  };
-  return github;
-}
-
-function openPullRequest(overrides = {}) {
-  return {
-    state: "open",
-    htmlUrl: `https://github.com/${repository}/pull/200`,
-    headSha: commit,
-    headRepository: repository,
-    draft: false,
-    baseRef: "main",
-    mergeableState: "clean",
-    merged: false,
-    mergeCommitSha: null,
-    previewLabeled: true,
-    previewRevoked: false,
-    ...overrides,
-  };
-}
-
-function mergedPullRequest() {
-  return openPullRequest({
-    state: "closed",
-    merged: true,
-    mergeCommitSha: mergeCommit,
-  });
-}
-
-function setup(context, { github = fakeGithub(), now } = {}) {
+function setup(context, { github = mergeGithub(), now } = {}) {
   const { ciWatches, merges } = fixture(context, { now });
   const previews = deliveredPreviews();
-  const sent = [];
   const traces = [];
   const membership = {
     result: { verified: true, status: "member" },
     calls: [],
   };
   const newerWork = { value: false, calls: [] };
-  const telegram = {
-    sendError: null,
-    async sendMessage(message) {
-      if (telegram.sendError) throw telegram.sendError;
-      sent.push(message);
-    },
-  };
+  const telegram = recordingTelegram();
   // Records every synchronisation the handler asks for; `error` makes it fail.
   const synchronization = {
     calls: [],
@@ -235,7 +125,8 @@ function setup(context, { github = fakeGithub(), now } = {}) {
   return {
     ciWatches,
     previews,
-    deliverPreview: (row) => previews.deliver(sessionKey, row),
+    deliverPreview: (row = deliveredPreviewRow()) =>
+      previews.deliver(sessionKey, row),
     merges,
     github,
     telegram,
@@ -244,7 +135,7 @@ function setup(context, { github = fakeGithub(), now } = {}) {
     synchronization,
     handler: buildHandler(),
     buildHandler,
-    sent,
+    sent: telegram.sent,
     traces,
   };
 }
@@ -335,13 +226,7 @@ test("merges the delivered preview commit and records it before the call", async
   const result = await handler.handle(request(), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.equal(
-    result.report,
-    [
-      "La proposta #200 ja està fusionada i el canvi és al projecte.",
-      `Enllaç per a revisió: https://github.com/${repository}/pull/200 (canvi fusionat bbbbbbb)`,
-    ].join("\n"),
-  );
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
   assert.equal(stateDuringMerge, "merging");
   assert.equal(merges.state(20), "merged");
@@ -360,14 +245,13 @@ test("merges the delivered preview commit and records it before the call", async
   assert.equal(traces[2].detail, `#200 ${commit} squash ${mergeCommit}`);
 });
 
-const infrastructureReport = [
-  "Aquest canvi toca les eines o la configuració del projecte, i ho ha de revisar la persona que manté el servei. No s'ha publicat res.",
-  `Enllaç per a revisió: https://github.com/${repository}/pull/200`,
-].join("\n");
+const infrastructureReport = mergeReports.infrastructureChanges({
+  reviewUrl: `https://github.com/${repository}/pull/200`,
+});
 
 test("merges a pull request without infrastructure changes, read at the pinned commit", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       changedPaths: [
         "apps/web/src/components/Header.astro",
         "apps/web/src/styles/global.css",
@@ -420,7 +304,7 @@ for (const [name, changedPaths] of [
 ]) {
   test(`refuses a pull request that changes ${name} without merging`, async (context) => {
     const { deliverPreview, handler, github, merges, traces } = setup(context, {
-      github: fakeGithub({ changedPaths }),
+      github: mergeGithub({ changedPaths }),
     });
     deliverPreview();
 
@@ -442,7 +326,7 @@ for (const [name, mode] of [
   test(`refuses ${name} without merging`, async (context) => {
     const path = "apps/web/src/content/posts/la-cursa.yaml";
     const { deliverPreview, handler, github, traces } = setup(context, {
-      github: fakeGithub({ treeModes: { [path]: mode } }),
+      github: mergeGithub({ treeModes: { [path]: mode } }),
     });
     deliverPreview();
 
@@ -456,7 +340,7 @@ for (const [name, mode] of [
 test("merges a pull request that removes a file", async (context) => {
   const path = "apps/web/src/content/posts/la-cursa.yaml";
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({ removedPaths: [path] }),
+    github: mergeGithub({ removedPaths: [path] }),
   });
   deliverPreview();
 
@@ -467,7 +351,7 @@ test("merges a pull request that removes a file", async (context) => {
 
 test("refuses as unreadable when the commit tree cannot be read", async (context) => {
   const { deliverPreview, handler, github, traces } = setup(context, {
-    github: fakeGithub({ treeModesError: new Error("truncated") }),
+    github: mergeGithub({ treeModesError: new Error("truncated") }),
   });
   deliverPreview();
 
@@ -482,7 +366,7 @@ for (const mergeableState of ["behind", "dirty"]) {
     const { deliverPreview, handler, synchronization, traces } = setup(
       context,
       {
-        github: fakeGithub({
+        github: mergeGithub({
           pullRequest: openPullRequest({ mergeableState }),
           changedPaths: ["apps/web/package.json"],
         }),
@@ -499,13 +383,16 @@ for (const mergeableState of ["behind", "dirty"]) {
 
 test("refuses as unreadable when the changed files cannot be read", async (context) => {
   const { deliverPreview, handler, github, traces } = setup(context, {
-    github: fakeGithub({ changedPathsError: new Error("network down") }),
+    github: mergeGithub({ changedPathsError: new Error("network down") }),
   });
   deliverPreview();
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.equal(
+    result.report,
+    mergeReports.unreadable({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(github.merges, []);
   assert.equal(traces.at(-1).detail, "unreadable #200 aaaaaaa");
 });
@@ -523,7 +410,7 @@ for (const [name, command] of [
 
     const result = await handler.handle(request(), command);
 
-    assert.match(result.report, /fusionada/u);
+    assert.equal(result.report, mergeReports.merged(mergedTarget));
     assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
   });
 }
@@ -535,7 +422,7 @@ test("the merge handler checks live CI instead of a delivered CI notice", async 
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
 });
 
@@ -544,7 +431,7 @@ test("refuses a command that is not one of the accepted forms", async (context) 
 
   const result = await handler.handle(request(), { valid: false });
 
-  assert.match(result.report, /Per fusionar, escriu/u);
+  assert.equal(result.report, mergeReports.usage);
   assert.deepEqual(github.merges, []);
   assert.equal(github.reads, 0);
   assert.deepEqual(membership.calls, []);
@@ -557,11 +444,7 @@ test("refuses when no preview confirmation was delivered", async (context) => {
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(
-    result.report,
-    /no hi ha cap avís vigent de preview confirmada/u,
-  );
-  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(result.report, mergeReports.noDeliveredPreview);
   assert.equal(github.reads, 0);
   assert.deepEqual(github.merges, []);
   assert.deepEqual(actions(traces), ["merge_refused"]);
@@ -574,11 +457,7 @@ test("a delivered CI notice alone never authorizes the merge", async (context) =
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(
-    result.report,
-    /no hi ha cap avís vigent de preview confirmada/u,
-  );
-  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(result.report, mergeReports.noDeliveredPreview);
   assert.equal(github.reads, 0);
   assert.deepEqual(github.merges, []);
   assert.equal(traces.at(-1).detail, "no_delivered_preview");
@@ -592,17 +471,22 @@ test("refuses another pull request or another commit than the delivered one", as
     valid: true,
     pullRequestNumber: 201,
   });
-  assert.match(other.report, /l'última proposta informada és la #200/u);
-  assert.match(other.report, /#201/u);
+  assert.equal(
+    other.report,
+    mergeReports.otherPullRequest({
+      requestedNumber: 201,
+      pullRequestNumber: 200,
+    }),
+  );
 
   const moved = await handler.handle(request(21), {
     valid: true,
     pullRequestNumber: 200,
     commit: "c".repeat(40),
   });
-  assert.match(
+  assert.equal(
     moved.report,
-    /no és el de l'última proposta informada \(#200\)/u,
+    mergeReports.commitMismatch({ pullRequestNumber: 200 }),
   );
 
   assert.deepEqual(github.merges, []);
@@ -615,9 +499,10 @@ test("refuses while the topic has newer work than its last notice", async (conte
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /feina més nova que l'últim avís/u);
-  assert.match(result.report, /proposta #200/u);
-  assert.match(result.report, /torna a demanar `\/merge`/u);
+  assert.equal(
+    result.report,
+    mergeReports.newerWork({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(newerWork.calls, [{ sessionKey, updateIdentifier: 20 }]);
   assert.deepEqual(github.merges, []);
   assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
@@ -625,14 +510,14 @@ test("refuses while the topic has newer work than its last notice", async (conte
 
 test("verifies the membership before any pull request is read", async (context) => {
   const { deliverPreview, handler, github, membership } = setup(context, {
-    github: fakeGithub({ pullRequest: mergedPullRequest() }),
+    github: mergeGithub({ pullRequest: mergedPullRequest() }),
   });
   deliverPreview();
   membership.result = { verified: false, reason: "not_a_group_member" };
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /Ja no constes com a membre del grup/u);
+  assert.equal(result.report, mergeReports.membershipRevoked);
   assert.equal(github.reads, 0, "no GitHub read for a revoked member");
   assert.deepEqual(github.merges, []);
 });
@@ -644,14 +529,11 @@ test("verifies the membership again when the command runs", async (context) => {
 
   membership.result = { verified: false, reason: "not_a_group_member" };
   const revoked = await handler.handle(request(20), bareCommand);
-  assert.match(revoked.report, /Ja no constes com a membre del grup/u);
+  assert.equal(revoked.report, mergeReports.membershipRevoked);
 
   membership.result = { verified: false, reason: "membership_check_failed" };
   const unavailable = await handler.handle(request(21), bareCommand);
-  assert.match(
-    unavailable.report,
-    /Ara mateix no he pogut comprovar que siguis membre del grup/u,
-  );
+  assert.equal(unavailable.report, mergeReports.membershipUnavailable);
 
   assert.deepEqual(github.merges, []);
   assert.equal(github.reads, 0);
@@ -719,11 +601,7 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
   const result = await handler.handle(request(), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.match(
-    result.report,
-    /Ara mateix no he pogut comprovar que siguis membre/u,
-  );
-  assert.match(result.report, /torna-ho a demanar/u);
+  assert.equal(result.report, mergeReports.membershipUnavailable);
   assert.deepEqual(github.merges, []);
   assert.equal(merges.state(20), undefined);
   assert.deepEqual(
@@ -737,37 +615,37 @@ const liveRefusals = [
     "a closed pull request",
     { pullRequest: openPullRequest({ state: "closed" }) },
     "not_open",
-    /ja no està oberta/u,
+    mergeReports.notOpen,
   ],
   [
     "a draft",
     { pullRequest: openPullRequest({ draft: true }) },
     "draft",
-    /esborrany/u,
+    mergeReports.draft,
   ],
   [
     "another base branch",
     { pullRequest: openPullRequest({ baseRef: "release" }) },
     "not_main_base",
-    /no apunta a la branca principal del projecte/u,
+    mergeReports.notMainBase,
   ],
   [
     "a fork",
     { pullRequest: openPullRequest({ headRepository: "someone/fork" }) },
     "not_main_repository",
-    /no és d'aquest projecte/u,
+    mergeReports.notMainRepository,
   ],
   [
     "a deleted fork",
     { pullRequest: openPullRequest({ headRepository: null }) },
     "not_main_repository",
-    /no és d'aquest projecte/u,
+    mergeReports.notMainRepository,
   ],
   [
     "a pull request without the preview label",
     { pullRequest: openPullRequest({ previewLabeled: false }) },
     "no_preview_label",
-    /preview/u,
+    mergeReports.noPreviewLabel,
   ],
   [
     "a pull request whose preview was revoked",
@@ -778,13 +656,13 @@ const liveRefusals = [
       }),
     },
     "preview_revoked",
-    /preview/u,
+    mergeReports.previewRevoked,
   ],
   [
     "a moved head",
     { pullRequest: openPullRequest({ headSha: "c".repeat(40) }) },
     "head_moved",
-    /ha canviat des que te la vaig informar/u,
+    mergeReports.headMoved,
   ],
   [
     "a red required check",
@@ -794,7 +672,7 @@ const liveRefusals = [
       ],
     },
     "checks_not_green",
-    /no estan totes en verd/u,
+    mergeReports.checksNotGreen,
   ],
   [
     "a pending required check",
@@ -804,13 +682,13 @@ const liveRefusals = [
       ],
     },
     "checks_not_green",
-    /no estan totes en verd/u,
+    mergeReports.checksNotGreen,
   ],
   [
     "an absent required check",
     { checkRuns: [] },
     "checks_not_green",
-    /no estan totes en verd/u,
+    mergeReports.checksNotGreen,
   ],
   [
     "a skipped required check",
@@ -820,7 +698,7 @@ const liveRefusals = [
       ],
     },
     "checks_not_green",
-    /no estan totes en verd/u,
+    mergeReports.checksNotGreen,
   ],
   [
     "a neutral required check",
@@ -830,52 +708,51 @@ const liveRefusals = [
       ],
     },
     "checks_not_green",
-    /no estan totes en verd/u,
+    mergeReports.checksNotGreen,
   ],
   [
     "a pull request without a mergeable state",
     { pullRequest: openPullRequest({ mergeableState: undefined }) },
     "not_clean",
-    /no considera la proposta #200 a punt/u,
+    mergeReports.notClean,
   ],
   [
     "a blocked pull request",
     { pullRequest: openPullRequest({ mergeableState: "blocked" }) },
     "not_clean",
-    /no considera la proposta #200 a punt/u,
+    mergeReports.notClean,
   ],
   [
     "unstable checks",
     { pullRequest: openPullRequest({ mergeableState: "unstable" }) },
     "not_clean",
-    /no considera/u,
+    mergeReports.notClean,
   ],
   [
     "pending hooks",
     { pullRequest: openPullRequest({ mergeableState: "has_hooks" }) },
     "not_clean",
-    /no considera/u,
+    mergeReports.notClean,
   ],
   [
     "an unreadable pull request",
     { readError: new Error("network down") },
     "unreadable",
-    /No he pogut llegir com està la proposta/u,
+    mergeReports.unreadable,
   ],
 ];
 
 for (const [name, state, reason, text] of liveRefusals) {
   test(`refuses ${name} without merging`, async (context) => {
     const { deliverPreview, handler, github, merges, traces } = setup(context, {
-      github: fakeGithub(state),
+      github: mergeGithub(state),
     });
     deliverPreview();
 
     const result = await handler.handle(request(), bareCommand);
 
     assert.equal(result.outcome, "answered");
-    assert.match(result.report, text);
-    assert.match(result.report, /No s'ha fusionat res/u);
+    assert.equal(result.report, text({ pullRequestNumber: 200 }));
     assert.deepEqual(github.merges, []);
     assert.equal(merges.state(20), undefined);
     assert.equal(traces.at(-1).action, "merge_refused");
@@ -884,7 +761,7 @@ for (const [name, state, reason, text] of liveRefusals) {
 }
 
 test("refuses if the live head changes during the check read", async (context) => {
-  const github = fakeGithub();
+  const github = mergeGithub();
   const { deliverPreview, handler } = setup(context, { github });
   deliverPreview();
   github.getCommitCheckRuns = async () => {
@@ -892,11 +769,14 @@ test("refuses if the live head changes during the check read", async (context) =
     return github.checkRuns;
   };
   const result = await handler.handle(request(), bareCommand);
-  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.equal(
+    result.report,
+    mergeReports.unreadable({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(github.merges, []);
 });
 
-for (const [name, mutate, detail] of [
+for (const [name, mutate, detail, report] of [
   [
     "the delivered preview is replaced",
     ({ previews }) =>
@@ -905,6 +785,7 @@ for (const [name, mutate, detail] of [
         deliveredPreviewRow({ noticeMessageIdentifier: 91 }),
       ),
     "no_delivered_preview",
+    mergeReports.noDeliveredPreview,
   ],
   [
     "newer work appears",
@@ -912,10 +793,11 @@ for (const [name, mutate, detail] of [
       newerWork.value = true;
     },
     "newer_work #200 aaaaaaa",
+    mergeReports.newerWork({ pullRequestNumber: 200 }),
   ],
 ]) {
   test(`refuses when ${name} while the live checks are read`, async (context) => {
-    const github = fakeGithub();
+    const github = mergeGithub();
     const environment = setup(context, { github });
     environment.deliverPreview();
     github.getCommitCheckRuns = async () => {
@@ -925,32 +807,38 @@ for (const [name, mutate, detail] of [
 
     const result = await environment.handler.handle(request(), bareCommand);
 
-    assert.match(result.report, /No s'ha fusionat res/u);
+    assert.equal(result.report, report);
     assert.deepEqual(github.merges, []);
     assert.equal(environment.traces.at(-1).detail, detail);
   });
 }
 
 test("refuses when live checks turn red or their read fails", async (context) => {
-  const github = fakeGithub();
+  const github = mergeGithub();
   const { deliverPreview, handler } = setup(context, { github });
   deliverPreview();
   github.checkRuns = [
     { name: "Validate", status: "completed", conclusion: "failure" },
   ];
   const red = await handler.handle(request(), bareCommand);
-  assert.match(red.report, /no estan totes en verd/u);
+  assert.equal(
+    red.report,
+    mergeReports.checksNotGreen({ pullRequestNumber: 200 }),
+  );
   github.getCommitCheckRuns = async () => {
     throw new Error("network");
   };
   const unreadable = await handler.handle(request(21), bareCommand);
-  assert.match(unreadable.report, /No he pogut llegir com està la proposta/u);
+  assert.equal(
+    unreadable.report,
+    mergeReports.unreadable({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(github.merges, []);
 });
 
 test("reads a pull request again while mergeability is unknown and then refuses as unreadable", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       pullRequest: openPullRequest({ mergeableState: "unknown" }),
     }),
   });
@@ -958,7 +846,10 @@ test("reads a pull request again while mergeability is unknown and then refuses 
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.equal(
+    result.report,
+    mergeReports.unreadable({ pullRequestNumber: 200 }),
+  );
   assert.equal(github.reads, 3);
   assert.equal(github.checkReads, 0);
   assert.deepEqual(github.merges, []);
@@ -966,7 +857,7 @@ test("reads a pull request again while mergeability is unknown and then refuses 
 
 test("answers already merged when GitHub reports unknown mergeability for a merged pull request", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       pullRequest: { ...mergedPullRequest(), mergeableState: "unknown" },
     }),
   });
@@ -974,13 +865,13 @@ test("answers already merged when GitHub reports unknown mergeability for a merg
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.equal(result.report, mergeReports.alreadyMerged(mergedTarget));
   assert.deepEqual(github.merges, []);
 });
 
 test("answers not open when GitHub reports unknown mergeability for a closed pull request", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       pullRequest: openPullRequest({
         state: "closed",
         mergeableState: "unknown",
@@ -992,13 +883,13 @@ test("answers not open when GitHub reports unknown mergeability for a closed pul
   const result = await handler.handle(request(), bareCommand);
 
   assert.doesNotMatch(result.report, /No he pogut llegir/u);
-  assert.match(result.report, /proposta #200 ja no està oberta/u);
+  assert.equal(result.report, mergeReports.notOpen({ pullRequestNumber: 200 }));
   assert.deepEqual(github.merges, []);
 });
 
 test("merges once GitHub finishes computing the mergeability", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       pullRequestSequence: [openPullRequest({ mergeableState: "unknown" })],
     }),
   });
@@ -1006,14 +897,14 @@ test("merges once GitHub finishes computing the mergeability", async (context) =
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.equal(github.reads, 4);
   assert.equal(github.merges.length, 1);
 });
 
 test("stops while waiting to read the mergeability again", async (context) => {
   const controller = new AbortController();
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "unknown" }),
   });
   const { deliverPreview, handler } = setup(context, { github });
@@ -1035,7 +926,7 @@ test("stops while waiting to read the mergeability again", async (context) => {
 
 test("stops reading while the service is stopping", async (context) => {
   const controller = new AbortController();
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "unknown" }),
   });
   const { deliverPreview, handler } = setup(context, { github });
@@ -1055,7 +946,7 @@ test("stops reading while the service is stopping", async (context) => {
 
 for (const status of [405, 409, 422]) {
   test(`a definite HTTP ${status} fails the request and allows a later one`, async (context) => {
-    const github = fakeGithub({
+    const github = mergeGithub({
       mergeError: new GitHubResponseError("PUT", "/merge", status),
     });
     const { deliverPreview, handler, merges, traces } = setup(context, {
@@ -1066,11 +957,10 @@ for (const status of [405, 409, 422]) {
     const result = await handler.handle(request(20), bareCommand);
 
     assert.equal(result.outcome, "answered");
-    assert.match(
+    assert.equal(
       result.report,
-      /GitHub ha refusat el merge de la proposta #200/u,
+      mergeReports.failed({ pullRequestNumber: 200 }),
     );
-    assert.match(result.report, /No s'ha fusionat res/u);
     assert.equal(merges.state(20), "failed");
     assert.equal(traces.at(-1).action, "merge_failed");
     assert.equal(traces.at(-1).detail, "#200 aaaaaaa HTTP 4xx");
@@ -1079,7 +969,7 @@ for (const status of [405, 409, 422]) {
 
     github.mergeError = null;
     const retry = await handler.handle(request(21), bareCommand);
-    assert.match(retry.report, /fusionada/u);
+    assert.equal(retry.report, mergeReports.merged(mergedTarget));
     assert.deepEqual(github.merges, [
       { number: 200, sha: commit },
       { number: 200, sha: commit },
@@ -1100,7 +990,7 @@ const unknownResults = [
 
 for (const [name, error] of unknownResults) {
   test(`${name} leaves the result uncertain and never merges twice`, async (context) => {
-    const github = fakeGithub({ mergeError: error });
+    const github = mergeGithub({ mergeError: error });
     const { deliverPreview, handler, merges, traces } = setup(context, {
       github,
     });
@@ -1109,7 +999,10 @@ for (const [name, error] of unknownResults) {
     const result = await handler.handle(request(20), bareCommand);
 
     assert.equal(result.outcome, "answered");
-    assert.match(result.report, /No sé si la proposta #200 s'ha fusionat/u);
+    assert.equal(
+      result.report,
+      mergeReports.uncertain({ pullRequestNumber: 200 }),
+    );
     assert.equal(merges.state(20), "uncertain");
     assert.equal(traces.at(-1).action, "merge_uncertain");
     assert.equal(traces.at(-1).authorIdentifier, 555);
@@ -1118,7 +1011,10 @@ for (const [name, error] of unknownResults) {
     // The pull request is still open: a person decides, nothing is repeated.
     github.mergeError = null;
     const again = await handler.handle(request(21), bareCommand);
-    assert.match(again.report, /i GitHub la mostra oberta/u);
+    assert.equal(
+      again.report,
+      mergeReports.uncertainOpen({ pullRequestNumber: 200, commit }),
+    );
     assert.equal(github.merges.length, 1);
     assert.equal(merges.state(21), undefined);
     assert.equal(traces.at(-1).detail, "uncertain_pending #200 aaaaaaa");
@@ -1127,7 +1023,7 @@ for (const [name, error] of unknownResults) {
 
 test("an aborted merge call is uncertain", async (context) => {
   const controller = new AbortController();
-  const github = fakeGithub({
+  const github = mergeGithub({
     mergeError: new DOMException("aborted", "AbortError"),
   });
   github.beforeMerge = () => controller.abort();
@@ -1140,7 +1036,7 @@ test("an aborted merge call is uncertain", async (context) => {
 });
 
 test("an uncertain merge that GitHub shows as merged is closed and reported", async (context) => {
-  const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
+  const github = mergeGithub({ mergeError: new TypeError("fetch failed") });
   const { deliverPreview, handler, merges, traces } = setup(context, {
     github,
   });
@@ -1152,7 +1048,7 @@ test("an uncertain merge that GitHub shows as merged is closed and reported", as
   const result = await handler.handle(request(21), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /GitHub mostra la proposta #200 fusionada/u);
+  assert.equal(result.report, mergeReports.reconciled(mergedTarget));
   assert.equal(merges.state(20), "merged");
   assert.equal(github.merges.length, 1);
   const reconciled = traces.at(-1);
@@ -1163,7 +1059,7 @@ test("an uncertain merge that GitHub shows as merged is closed and reported", as
 });
 
 test("an uncertain merge whose pull request cannot be read refuses as unreadable", async (context) => {
-  const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
+  const github = mergeGithub({ mergeError: new TypeError("fetch failed") });
   const { deliverPreview, handler, merges } = setup(context, { github });
   deliverPreview();
   await handler.handle(request(20), bareCommand);
@@ -1171,7 +1067,10 @@ test("an uncertain merge whose pull request cannot be read refuses as unreadable
   github.readError = new Error("network down");
   const result = await handler.handle(request(21), bareCommand);
 
-  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.equal(
+    result.report,
+    mergeReports.unreadable({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "uncertain");
   assert.equal(github.merges.length, 1);
 });
@@ -1191,7 +1090,7 @@ test("never merges the same update twice", async (context) => {
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /Aquesta petició de merge ja s'havia atès/u);
+  assert.equal(result.report, mergeReports.alreadyHandled);
   assert.deepEqual(github.merges, []);
   assert.equal(traces.at(-1).detail, "already_handled #200 aaaaaaa");
 });
@@ -1209,12 +1108,15 @@ test("refuses a second merge of a pull request that is already merging", async (
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /Ja hi ha un merge de la proposta #200 en curs/u);
+  assert.equal(
+    result.report,
+    mergeReports.alreadyInProgress({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(github.merges, []);
 });
 
 test("startup closes an uncertain merge that GitHub shows as merged and tells the topic", async (context) => {
-  const github = fakeGithub({ pullRequest: mergedPullRequest() });
+  const github = mergeGithub({ pullRequest: mergedPullRequest() });
   const { handler, merges, sent, traces } = setup(context, { github });
   merges.begin({
     updateIdentifier: 20,
@@ -1231,7 +1133,7 @@ test("startup closes an uncertain merge that GitHub shows as merged and tells th
   assert.equal(sent.length, 1);
   assert.equal(sent[0].chatIdentifier, -1001234567890);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /GitHub mostra la proposta #200 fusionada/u);
+  assert.equal(sent[0].text, mergeReports.reconciled(mergedTarget));
   assert.ok(sent[0].signal instanceof AbortSignal);
   assert.deepEqual(actions(traces), ["merge_reconciled"]);
   assert.deepEqual(github.merges, []);
@@ -1249,7 +1151,7 @@ function interruptedMerge(merges) {
 }
 
 test("keeps the startup notice of a merge as a service event of its session", async (context) => {
-  const github = fakeGithub({ pullRequest: mergedPullRequest() });
+  const github = mergeGithub({ pullRequest: mergedPullRequest() });
   const notes = [];
   const { merges, sent, buildHandler } = setup(context, { github });
   const handler = buildHandler({
@@ -1275,7 +1177,10 @@ test("startup tells the topic once about an unknown result of an open pull reque
   assert.equal(merges.state(20), "uncertain");
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /i GitHub la mostra oberta/u);
+  assert.equal(
+    sent[0].text,
+    mergeReports.uncertainOpen({ pullRequestNumber: 200, commit }),
+  );
   assert.ok(
     sent[0].text.includes(`\`/merge 200 ${commit}\``),
     "the topic carries the exact command to confirm the unknown result",
@@ -1285,7 +1190,7 @@ test("startup tells the topic once about an unknown result of an open pull reque
 });
 
 test("startup tells the topic that an unmerged closed pull request cannot be merged", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ state: "closed" }),
   });
   const { handler, merges, sent } = setup(context, { github });
@@ -1295,15 +1200,17 @@ test("startup tells the topic that an unmerged closed pull request cannot be mer
   await handler.reconcileUncertain();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /tancada sense fusionar/u);
-  assert.match(sent[0].text, /no es pot fusionar/u);
+  assert.equal(
+    sent[0].text,
+    mergeReports.uncertainClosed({ pullRequestNumber: 200 }),
+  );
   // The merge can never happen, so the row ends instead of blocking every start.
   assert.equal(merges.state(20), "not_merged");
   assert.deepEqual(merges.uncertain(), []);
 });
 
 test("startup does not repeat the notice of a result the topic was already told", async (context) => {
-  const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
+  const github = mergeGithub({ mergeError: new TypeError("fetch failed") });
   const { deliverPreview, handler, sent } = setup(context, { github });
   deliverPreview();
   await handler.handle(request(20), bareCommand);
@@ -1314,7 +1221,7 @@ test("startup does not repeat the notice of a result the topic was already told"
 });
 
 test("startup keeps an uncertain merge when it cannot be read or the notice is not sent", async (context) => {
-  const github = fakeGithub();
+  const github = mergeGithub();
   const { handler, merges, sent, telegram } = setup(context, { github });
   interruptedMerge(merges);
 
@@ -1341,7 +1248,7 @@ test("startup keeps an uncertain merge when it cannot be read or the notice is n
 });
 
 async function uncertainOpenMerge(context, state = {}) {
-  const github = fakeGithub({
+  const github = mergeGithub({
     mergeError: new TypeError("fetch failed"),
     ...state,
   });
@@ -1360,7 +1267,10 @@ test("asks for the strict form while an unknown result is still open and merges 
     [22, { valid: true, pullRequestNumber: 200 }],
   ]) {
     const result = await handler.handle(request(updateIdentifier), command);
-    assert.match(result.report, /i GitHub la mostra oberta/u);
+    assert.equal(
+      result.report,
+      mergeReports.uncertainOpen({ pullRequestNumber: 200, commit }),
+    );
     assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
   }
 
@@ -1378,7 +1288,10 @@ test("asks for the strict form of the row's commit while another commit is writt
     commit: "c".repeat(40),
   });
 
-  assert.match(result.report, /i GitHub la mostra oberta/u);
+  assert.equal(
+    result.report,
+    mergeReports.uncertainOpen({ pullRequestNumber: 200, commit }),
+  );
   assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
@@ -1397,8 +1310,10 @@ test("a person's strict form clears an unknown result and never merges in that r
     commit,
   });
 
-  assert.match(result.report, /GitHub no mostra la proposta #200 fusionada/u);
-  assert.match(result.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(
+    result.report,
+    mergeReports.uncertainCleared({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(21), undefined);
   assert.equal(github.merges.length, 1);
@@ -1415,7 +1330,7 @@ test("a person's strict form clears an unknown result and never merges in that r
 
   // The next request starts from scratch and merges the delivered preview.
   const merged = await handler.handle(request(22), bareCommand);
-  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merged.report, mergeReports.merged(mergedTarget));
   assert.equal(merges.state(22), "merged");
   assert.equal(github.merges.length, 2);
   assert.deepEqual(github.merges[1], { number: 200, sha: commit });
@@ -1434,7 +1349,10 @@ test("keeps the unknown result open when its row cannot be closed", async (conte
   });
 
   // The row is still uncertain, so the request never goes on to merge.
-  assert.match(result.report, /i GitHub la mostra oberta/u);
+  assert.equal(
+    result.report,
+    mergeReports.uncertainOpen({ pullRequestNumber: 200, commit }),
+  );
   assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
   assert.equal(merges.state(20), "uncertain");
   assert.equal(github.merges.length, 1);
@@ -1455,7 +1373,10 @@ test("an explicit strict form reconciles an unknown result without an eligible p
     commit,
   });
 
-  assert.match(result.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(
+    result.report,
+    mergeReports.uncertainCleared({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(21), undefined);
   assert.equal(
@@ -1488,11 +1409,7 @@ test("an explicit strict form never reconciles an unknown result of another topi
     commit,
   });
 
-  assert.match(
-    result.report,
-    /no hi ha cap avís vigent de preview confirmada/u,
-  );
-  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(result.report, mergeReports.noDeliveredPreview);
   assert.equal(merges.state(20), "uncertain");
   assert.deepEqual(github.merges, []);
   assert.ok(
@@ -1509,7 +1426,10 @@ test("a moved head is confirmed with its own commit, which the full request stil
   deliverPreview(deliveredPreviewRow({ commitSha: movedCommit }));
 
   const asked = await handler.handle(request(21), bareCommand);
-  assert.match(asked.report, /i GitHub la mostra oberta/u);
+  assert.equal(
+    asked.report,
+    mergeReports.uncertainOpen({ pullRequestNumber: 200, commit: movedCommit }),
+  );
   assert.ok(
     asked.report.includes(`\`/merge 200 ${movedCommit}\``),
     "the command asks for the commit of the current head",
@@ -1521,7 +1441,10 @@ test("a moved head is confirmed with its own commit, which the full request stil
     pullRequestNumber: 200,
     commit,
   });
-  assert.match(stale.report, /i GitHub la mostra oberta/u);
+  assert.equal(
+    stale.report,
+    mergeReports.uncertainOpen({ pullRequestNumber: 200, commit: movedCommit }),
+  );
   assert.ok(stale.report.includes(`\`/merge 200 ${movedCommit}\``));
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
@@ -1531,8 +1454,10 @@ test("a moved head is confirmed with its own commit, which the full request stil
     pullRequestNumber: 200,
     commit: movedCommit,
   });
-  assert.match(cleared.report, /GitHub no mostra la proposta #200 fusionada/u);
-  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(
+    cleared.report,
+    mergeReports.uncertainCleared({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(23), undefined);
   assert.equal(github.merges.length, 1);
@@ -1542,7 +1467,7 @@ test("a moved head is confirmed with its own commit, which the full request stil
   assert.equal(clearedTrace.detail, `#200 ${movedCommit.slice(0, 7)}`);
 
   const merged = await handler.handle(request(24), bareCommand);
-  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merged.report, mergeReports.merged(mergedTarget));
   assert.equal(merges.state(24), "merged");
   assert.equal(github.merges.length, 2);
   assert.deepEqual(github.merges[1], { number: 200, sha: movedCommit });
@@ -1562,8 +1487,10 @@ test("a strict form of the new head clears the unknown result before its preview
     commit: movedCommit,
   });
 
-  assert.match(cleared.report, /GitHub no mostra la proposta #200 fusionada/u);
-  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(
+    cleared.report,
+    mergeReports.uncertainCleared({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "not_merged");
   assert.equal(github.merges.length, 1, "nothing new was merged");
   const clearedTrace = traces.find(
@@ -1575,7 +1502,7 @@ test("a strict form of the new head clears the unknown result before its preview
   deliverPreview(deliveredPreviewRow({ commitSha: movedCommit }));
   const merged = await handler.handle(request(22), bareCommand);
 
-  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merged.report, mergeReports.merged(mergedTarget));
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(22), "merged");
   assert.deepEqual(github.merges.at(-1), { number: 200, sha: movedCommit });
@@ -1588,7 +1515,7 @@ test("refuses a live pull request that GitHub shows merged", async (context) => 
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.equal(result.report, mergeReports.alreadyMerged(mergedTarget));
   assert.deepEqual(github.merges, []);
   assert.equal(traces.at(-1).detail, "already_merged #200 aaaaaaa");
 });
@@ -1602,12 +1529,18 @@ test("a later request after a cleared unknown result still refuses failing live 
     pullRequestNumber: 200,
     commit,
   });
-  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(
+    cleared.report,
+    mergeReports.uncertainCleared({ pullRequestNumber: 200 }),
+  );
   assert.equal(merges.state(20), "not_merged");
   assert.equal(github.merges.length, 1);
 
   const retry = await handler.handle(request(22), bareCommand);
-  assert.match(retry.report, /no estan totes en verd/u);
+  assert.equal(
+    retry.report,
+    mergeReports.checksNotGreen({ pullRequestNumber: 200 }),
+  );
   assert.equal(github.merges.length, 1);
 });
 
@@ -1621,7 +1554,10 @@ test("an unknown result of a closed unmerged pull request cannot be cleared", as
     commit,
   });
 
-  assert.match(result.report, /tancada sense fusionar/u);
+  assert.equal(
+    result.report,
+    mergeReports.uncertainClosed({ pullRequestNumber: 200 }),
+  );
   // A pull request closed without merging can never be merged: the row ends
   // instead of blocking the topic on every start.
   assert.equal(merges.state(20), "not_merged");
@@ -1638,14 +1574,14 @@ test("an unknown result that GitHub shows merged is reconciled even for the stri
     commit,
   });
 
-  assert.match(result.report, /GitHub mostra la proposta #200 fusionada/u);
+  assert.equal(result.report, mergeReports.reconciled(mergedTarget));
   assert.equal(merges.state(20), "merged");
   assert.equal(github.merges.length, 1);
 });
 
 test("answers that the pull request is already merged from its delivered preview", async (context) => {
   const { deliverPreview, handler, github, traces } = setup(context, {
-    github: fakeGithub({ pullRequest: mergedPullRequest() }),
+    github: mergeGithub({ pullRequest: mergedPullRequest() }),
   });
   deliverPreview();
 
@@ -1654,13 +1590,7 @@ test("answers that the pull request is already merged from its delivered preview
     [21, { valid: true, pullRequestNumber: 200 }],
   ]) {
     const result = await handler.handle(request(updateIdentifier), command);
-    assert.equal(
-      result.report,
-      [
-        "La proposta #200 ja està fusionada. No he fet res més.",
-        `Enllaç per a revisió: https://github.com/${repository}/pull/200 (canvi fusionat bbbbbbb)`,
-      ].join("\n"),
-    );
+    assert.equal(result.report, mergeReports.alreadyMerged(mergedTarget));
   }
 
   assert.deepEqual(github.merges, []);
@@ -1676,11 +1606,7 @@ test("reports a merge that happened even when its end cannot be saved", async (c
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(
-    result.report,
-    /La proposta #200 ja està fusionada i el canvi és al projecte\./u,
-  );
-  assert.match(result.report, /No he pogut desar aquest resultat/u);
+  assert.equal(result.report, mergeReports.mergedUnsaved(mergedTarget));
   assert.equal(merges.state(20), "merging");
   assert.equal(traces.at(-1).action, "merge_completed");
 
@@ -1694,7 +1620,7 @@ for (const [name, method, error] of [
   ["an unknown result", "markUncertain", new TypeError("fetch failed")],
 ]) {
   test(`answers with the unknown-result text when the end of ${name} cannot be saved`, async (context) => {
-    const github = fakeGithub({ mergeError: error });
+    const github = mergeGithub({ mergeError: error });
     const { deliverPreview, handler, merges } = setup(context, { github });
     deliverPreview();
     merges[method] = () => {
@@ -1703,7 +1629,10 @@ for (const [name, method, error] of [
 
     const result = await handler.handle(request(20), bareCommand);
 
-    assert.match(result.report, /No sé si la proposta #200 s'ha fusionat/u);
+    assert.equal(
+      result.report,
+      mergeReports.uncertain({ pullRequestNumber: 200 }),
+    );
     assert.doesNotMatch(result.report, /No s'ha fet cap push/u);
     assert.equal(merges.state(20), "merging");
   });
@@ -1722,13 +1651,13 @@ test("a failing trace never stops a merge", async (context) => {
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.equal(github.merges.length, 1);
   assert.ok(failures.includes("merge_trace_failed"));
 });
 
 test("a behind branch triggers the synchronisation with the trusted pin and never merges", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({
       mergeableState: "behind",
       headRef: "work",
@@ -1778,7 +1707,7 @@ test("an up to date branch never synchronises", async (context) => {
 });
 
 test("a conflict with main reaches synchronization instead of attempting the merge", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "dirty" }),
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
@@ -1794,7 +1723,7 @@ test("a conflict with main reaches synchronization instead of attempting the mer
 });
 
 test("a still-open merge prevents synchronizing a behind pull request", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, merges, synchronization } = setup(context, {
@@ -1811,7 +1740,10 @@ test("a still-open merge prevents synchronizing a behind pull request", async (c
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /merge de la proposta #200 en curs/u);
+  assert.equal(
+    result.report,
+    mergeReports.alreadyInProgress({ pullRequestNumber: 200 }),
+  );
   assert.deepEqual(synchronization.calls, []);
   assert.deepEqual(github.merges, []);
   assert.equal(merges.state(19), "merging");
@@ -1867,7 +1799,7 @@ test("fresh requests repeat synchronization until the delivered commit is curren
 });
 
 test("a behind branch with a pull request or commit mismatch never synchronises", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
@@ -1892,7 +1824,7 @@ for (const [name, prepare] of [
   ["a draft", { draft: true }],
 ]) {
   test(`a behind branch with ${name} never synchronises`, async (context) => {
-    const github = fakeGithub({
+    const github = mergeGithub({
       pullRequest: openPullRequest({ mergeableState: "behind", ...prepare }),
     });
     const { deliverPreview, handler, synchronization } = setup(context, {
@@ -1907,7 +1839,7 @@ for (const [name, prepare] of [
 }
 
 test("a behind branch with checks not green never synchronises", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
     checkRuns: [{ name: "Validate", status: "in_progress", conclusion: null }],
   });
@@ -1922,7 +1854,7 @@ test("a behind branch with checks not green never synchronises", async (context)
 });
 
 test("a behind branch for a person who left or with newer work never synchronises", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, membership, newerWork } =
@@ -1938,7 +1870,7 @@ test("a behind branch for a person who left or with newer work never synchronise
 });
 
 test("a preview replaced during the live read prevents the synchronisation", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, previews } = setup(
@@ -1958,11 +1890,11 @@ test("a preview replaced during the live read prevents the synchronisation", asy
   const result = await handler.handle(request(), bareCommand);
 
   assert.deepEqual(synchronization.calls, []);
-  assert.match(result.report, /preview|avís|No s'ha fusionat|encara/u);
+  assert.equal(result.report, mergeReports.noDeliveredPreview);
 });
 
 test("a failing synchronisation refuses as behind and still never merges", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, traces } = setup(context, {
@@ -1974,13 +1906,13 @@ test("a failing synchronisation refuses as behind and still never merges", async
   const result = await handler.handle(request(), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /no està al dia/u);
+  assert.equal(result.report, mergeReports.behind({ pullRequestNumber: 200 }));
   assert.deepEqual(github.merges, []);
   assert.ok(actions(traces).includes("merge_refused"));
 });
 
 test("an aborted synchronisation propagates the abort", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
@@ -1997,7 +1929,7 @@ test("an aborted synchronisation propagates the abort", async (context) => {
 });
 
 test("an uncertain result keeps its query-only path and never synchronises", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, merges } = setup(context, {
@@ -2039,7 +1971,7 @@ for (const [name, messageIdentifier] of [
     );
 
     assert.equal(result.outcome, "answered");
-    assert.match(result.report, /preview|avís/u);
+    assert.equal(result.report, mergeReports.noDeliveredPreview);
     assert.deepEqual(github.merges, []);
     assert.equal(merges.state(20), undefined);
     assert.ok(actions(traces).includes("merge_refused"));
@@ -2048,7 +1980,7 @@ for (const [name, messageIdentifier] of [
 }
 
 test("an old merge never synchronises a behind branch", async (context) => {
-  const github = fakeGithub({
+  const github = mergeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
@@ -2076,7 +2008,7 @@ test("a notice delivered while the live read runs refuses the older queued merge
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /preview|avís/u);
+  assert.equal(result.report, mergeReports.noDeliveredPreview);
   assert.deepEqual(github.merges, []);
 });
 
@@ -2097,7 +2029,7 @@ test("strict protection rejects the pinned merge when main advances after prefli
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /GitHub ha refusat el merge/u);
+  assert.equal(result.report, mergeReports.failed({ pullRequestNumber: 200 }));
   assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
   assert.deepEqual(synchronization.calls, []);
   assert.equal(merges.state(20), "failed");

@@ -1,16 +1,7 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { promisify } from "node:util";
 import { test } from "node:test";
 import { InspectableQueue as AdmissionQueue } from "../../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import {
@@ -33,44 +24,29 @@ import {
   listUncertainCases,
   resolveUncertainCase,
 } from "./uncertain-cases.mjs";
+import {
+  createGitRepository,
+  git,
+} from "../../repository/test-support/git-repository.mjs";
+import { recordingTelegram } from "../../workflow/test-support/telegram.mjs";
 
-const executeFile = promisify(execFile);
 const pullRequestNumber = 42;
 const publishedCommitSha = "c".repeat(40);
 const sessionKeyOne = "-1001234567890:7";
 const sessionKeyTwo = "-1001234567890:8";
 const privateInstruction = "synthetic private instruction";
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function fixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-agent-reconcile-"));
-  const origin = join(directory, "origin.git");
-  const repository = join(directory, "repository");
+  const { directory, repository } = await createGitRepository(
+    context,
+    "mr-agent-reconcile-",
+  );
   const worktreeRoot = join(directory, "worktrees");
   const state = join(directory, "state");
   mkdirSync(state);
   // The installation has its salt: instruction cases can be attributed without
   // the command creating anything.
   openIdentifierNames(state);
-
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "synthetic\n");
-  await git(repository, ["add", "README.md"]);
-  await git(repository, ["commit", "-m", "chore: initial"]);
-  await git(repository, ["push", "origin", "main"]);
 
   const stores = {
     instructions: new AdmissionQueue(join(state, "admission.sqlite"), {
@@ -89,12 +65,6 @@ async function fixture(context) {
     stores.merges.close();
     stores.ciWatches.close();
     stores.instructions.close();
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
   });
   return {
     config: {
@@ -141,16 +111,6 @@ function interruptInstruction(store, updateIdentifier, sessionKey) {
   });
   store.next();
   store.markUncertain(updateIdentifier, "uncertain");
-}
-
-function fakeTelegram() {
-  const messages = [];
-  return {
-    messages,
-    async sendMessage({ chatIdentifier, messageThreadIdentifier, text }) {
-      messages.push({ chatIdentifier, messageThreadIdentifier, text });
-    },
-  };
 }
 
 // The store is kept open by the test; a second read-only connection reads the
@@ -278,7 +238,7 @@ test("restores what a normal publication leaves when reconciling it as published
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const github = publishedGithub(branch, commit);
 
   const resolved = await reconcile(config, stores, telegram, {
@@ -323,7 +283,7 @@ test("restores what a normal publication leaves when reconciling it as published
     "reconciled_published",
   );
   assert.equal(publishedCommit(worktree), commit);
-  assert.equal(telegram.messages.length, 1);
+  assert.equal(telegram.sent.length, 1);
   assert.deepEqual(
     stores.instructions.traceEntries().map((entry) => entry.action),
     ["uncertain_reconciled"],
@@ -345,7 +305,7 @@ test("never labels again the pull request a topic is already bound to", async (c
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   // No GitHub client: a continuation reads and labels nothing.
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -371,7 +331,7 @@ test("refuses another pull request for a bound topic before writing anything", a
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
-    reconcile(config, stores, fakeTelegram(), {
+    reconcile(config, stores, recordingTelegram(), {
       kind: "instruction",
       updateIdentifier: 11,
       resolution: reconcileResolutions.published,
@@ -409,7 +369,7 @@ for (const [name, overrides, message] of [
     const github = publishedGithub(branch, commit, overrides);
 
     await assert.rejects(
-      reconcile(config, stores, fakeTelegram(), {
+      reconcile(config, stores, recordingTelegram(), {
         github,
         kind: "instruction",
         updateIdentifier: 11,
@@ -444,14 +404,14 @@ test("keeps a first publication uncertain until its label and branch are confirm
   };
 
   await assert.rejects(
-    reconcile(config, stores, fakeTelegram(), {
+    reconcile(config, stores, recordingTelegram(), {
       ...command,
       github: publishedGithub("feat/agent-another-topic", commit),
     }),
     ReconcileCaseError,
   );
   await assert.rejects(
-    reconcile(config, stores, fakeTelegram(), {
+    reconcile(config, stores, recordingTelegram(), {
       ...command,
       github: {
         ...publishedGithub(branch, commit),
@@ -469,7 +429,7 @@ test("keeps a first publication uncertain until its label and branch are confirm
   assert.deepEqual(stores.previews.awaiting(), []);
 
   const labelled = publishedGithub(branch, commit, { previewLabeled: true });
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     ...command,
     github: labelled,
   });
@@ -499,7 +459,7 @@ test("restarts preview tracking after reconciling a synchronization push", async
     commitSha: commit,
   };
 
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
@@ -533,7 +493,7 @@ test("ends the older synchronization a reconciled publication replaced", async (
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
@@ -559,7 +519,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
-    reconcile(config, { ...stores, ciWatches: null }, fakeTelegram(), {
+    reconcile(config, { ...stores, ciWatches: null }, recordingTelegram(), {
       github: publishedGithub(branch, publishedCommitSha),
       kind: "instruction",
       updateIdentifier: 11,
@@ -583,7 +543,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
           },
         },
       },
-      fakeTelegram(),
+      recordingTelegram(),
       {
         github: publishedGithub(branch, publishedCommitSha),
         kind: "instruction",
@@ -607,7 +567,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const marker = join(worktree.gitDirectory, "agent-published-head");
   mkdirSync(marker);
 
@@ -622,7 +582,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
     }),
   );
   assert.equal(stores.instructions.status(11), "uncertain");
-  assert.deepEqual(telegram.messages, []);
+  assert.deepEqual(telegram.sent, []);
   assert.deepEqual(stores.instructions.traceEntries(), []);
 
   rmdirSync(marker);
@@ -642,7 +602,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
     stores.ciWatches.pending().map((row) => row.update_identifier),
     [11],
   );
-  assert.equal(telegram.messages.length, 1);
+  assert.equal(telegram.sent.length, 1);
 });
 
 test("records no publication when the confirmed commit is not the worktree head", async (context) => {
@@ -654,7 +614,7 @@ test("records no publication when the confirmed commit is not the worktree head"
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     github: publishedGithub(branch, publishedCommitSha),
     kind: "instruction",
     updateIdentifier: 11,
@@ -677,7 +637,7 @@ test("resolves a not published instruction and keeps the local work", async (con
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
-  await reconcile(config, stores, fakeTelegram(), {
+  await reconcile(config, stores, recordingTelegram(), {
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.notPublished,
@@ -699,7 +659,7 @@ test("resolves a not published instruction and keeps the local work", async (con
 test("keeps the instruction uncertain when its trace cannot be written", async (context) => {
   const { config, stores, state } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const database = new DatabaseSync(join(state, "admission.sqlite"));
   database.exec("DROP TABLE trace");
   database.close();
@@ -712,7 +672,7 @@ test("keeps the instruction uncertain when its trace cannot be written", async (
     }),
   );
   assert.equal(stores.instructions.status(11), "uncertain");
-  assert.deepEqual(telegram.messages, []);
+  assert.deepEqual(telegram.sent, []);
 });
 
 function uncertainMerge(store, updateIdentifier = 60) {
@@ -754,7 +714,7 @@ test("lists an uncertain merge", async (context) => {
 test("closes an uncertain merge as merged when GitHub shows it merged", async (context) => {
   const { config, stores } = await fixture(context);
   const updateIdentifier = uncertainMerge(stores.merges);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
 
   await resolveUncertainCase({
     config,
@@ -772,7 +732,7 @@ test("closes an uncertain merge as merged when GitHub shows it merged", async (c
 
   assert.equal(stores.merges.state(updateIdentifier), "merged");
   assert.deepEqual(stores.merges.uncertain(), []);
-  assert.deepEqual(telegram.messages, []);
+  assert.deepEqual(telegram.sent, []);
   const trace = stores.instructions
     .traceEntries()
     .find((entry) => entry.action === "uncertain_reconciled");
@@ -786,7 +746,7 @@ test("closes an uncertain merge as not merged when GitHub shows it unmerged", as
   await resolveUncertainCase({
     config,
     stores,
-    telegram: fakeTelegram(),
+    telegram: recordingTelegram(),
     github: githubWith({ merged: false, state: "open" }),
     kind: "merge",
     updateIdentifier,
@@ -805,7 +765,7 @@ test("refuses an uncertain merge resolution that GitHub contradicts", async (con
     resolveUncertainCase({
       config,
       stores,
-      telegram: fakeTelegram(),
+      telegram: recordingTelegram(),
       github: githubWith({
         merged: true,
         headSha: "d".repeat(40),
@@ -828,7 +788,7 @@ test("refuses an uncertain merge whose pull request merged another head", async 
     resolveUncertainCase({
       config,
       stores,
-      telegram: fakeTelegram(),
+      telegram: recordingTelegram(),
       github: githubWith({
         merged: true,
         headSha: "a".repeat(40),
@@ -846,7 +806,7 @@ test("refuses an uncertain merge whose pull request merged another head", async 
 test("refuses a case that is no longer uncertain", async (context) => {
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const command = {
     kind: "instruction",
     updateIdentifier: 11,
@@ -859,7 +819,7 @@ test("refuses a case that is no longer uncertain", async (context) => {
     reconcile(config, stores, telegram, command),
     ReconcileCaseError,
   );
-  assert.equal(telegram.messages.length, 1);
+  assert.equal(telegram.sent.length, 1);
   assert.deepEqual(
     stores.instructions.traceEntries().map((entry) => entry.action),
     ["uncertain_reconciled"],
@@ -874,7 +834,7 @@ test("traces each resolution without the instruction text and notifies once per 
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
 
   await reconcile(config, stores, telegram, {
     github: publishedGithub(branch, commit),
@@ -910,7 +870,7 @@ test("traces each resolution without the instruction text and notifies once per 
     assert.equal(entry.author_identifier, null);
   }
   assert.deepEqual(
-    telegram.messages.map((message) => [
+    telegram.sent.map((message) => [
       message.chatIdentifier,
       message.messageThreadIdentifier,
     ]),
@@ -919,17 +879,14 @@ test("traces each resolution without the instruction text and notifies once per 
       [-1001234567890, 8],
     ],
   );
-  for (const message of telegram.messages) {
+  for (const message of telegram.sent) {
     assert.match(
       message.text,
       /^Ja està resolt el que havia quedat a mitges:/u,
     );
     assert.doesNotMatch(message.text, /comentari publicat|GitHub/u);
   }
-  assert.equal(
-    new Set(telegram.messages.map((message) => message.text)).size,
-    2,
-  );
+  assert.equal(new Set(telegram.sent.map((message) => message.text)).size, 2);
 });
 
 test("keeps the resolution and traces the failure when the notice cannot be sent", async (context) => {
@@ -966,7 +923,7 @@ test("refuses a resolution that does not belong to the case kind", async (contex
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
-    reconcile(config, stores, fakeTelegram(), {
+    reconcile(config, stores, recordingTelegram(), {
       kind: "instruction",
       updateIdentifier: 11,
       resolution: reconcileResolutions.merged,
@@ -979,7 +936,7 @@ test("refuses a resolution that does not belong to the case kind", async (contex
 test("the service startup check no longer refuses once every case is resolved", async (context) => {
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
 
   await reconcile(config, stores, telegram, {
     kind: "instruction",

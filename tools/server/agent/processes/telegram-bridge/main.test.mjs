@@ -13,7 +13,11 @@ import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { reconcileResolutions } from "../../policy/development.mjs";
+import {
+  mergeReports,
+  reconcileResolutions,
+  workingNotice,
+} from "../../policy/development.mjs";
 import { resolveUncertainCase } from "../../commands/reconcile/uncertain-cases.mjs";
 import { mergeRequestState } from "../../repository/test-support/merge-request-state.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
@@ -27,14 +31,24 @@ import {
   recordPublication,
 } from "../../repository/worktrees.mjs";
 import {
-  retentionIntervalMilliseconds,
   runBridgeWithCiWatcher,
   scheduleRetention,
   startService,
   stopService,
 } from "./main.mjs";
+import {
+  mergedPullRequest,
+  mergeGithub,
+  openPullRequest,
+  publisherComment,
+} from "../../workflow/test-support/github.mjs";
 
 const executeFile = promisify(execFile);
+const mergedTarget = {
+  pullRequestNumber: 200,
+  mergeCommit: "b".repeat(40),
+  pullRequestUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+};
 
 /** A stand-in for the Pi command that only answers `--version`. */
 function fakePi(directory, version) {
@@ -318,10 +332,6 @@ test("removes its abort listener when stopped manually", () => {
   stop();
 
   assert.equal(listeners.size, 0);
-});
-
-test("measures the periodic retention in hours", () => {
-  assert.equal(retentionIntervalMilliseconds, 6 * 60 * 60 * 1000);
 });
 
 test("refuses a bot token that belongs to another username", async (context) => {
@@ -642,11 +652,7 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
     github: {
       async listIssueComments() {
         return [
-          {
-            user: { login: "github-actions[bot]" },
-            body: `<!-- mountain-runners-preview -->\nPreview publicada: https://pr-200.preview.mountainrunners.cat\nCommit: \`${commit}\`.`,
-            updated_at: "2026-11-14T10:05:00Z",
-          },
+          publisherComment({ commit, updatedAt: "2026-11-14T10:05:00Z" }),
         ];
       },
       async getPullRequest() {
@@ -704,18 +710,6 @@ test("runs the preview watcher beside the bridge and stops it with the service",
   assert.equal(stopped, true);
 });
 
-const mergedPullRequest = {
-  state: "closed",
-  htmlUrl: "https://github.com/example/project/pull/200",
-  headSha: "a".repeat(40),
-  headRepository: "rboixaderg/mountain-runners",
-  draft: false,
-  baseRef: "main",
-  mergeableState: "clean",
-  merged: true,
-  mergeCommitSha: "b".repeat(40),
-};
-
 function interruptedMerge(statePath) {
   mkdirSync(statePath, { recursive: true });
   const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
@@ -743,7 +737,7 @@ test("keeps an interrupted merge uncertain, attributed in the trace, and still s
     },
     github: {
       async getPullRequest() {
-        return { ...mergedPullRequest, state: "open", merged: false };
+        return openPullRequest();
       },
     },
     runner: async () => ({}),
@@ -784,7 +778,7 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
     },
     github: {
       async getPullRequest() {
-        return mergedPullRequest;
+        return mergedPullRequest();
       },
     },
     runner: async () => ({}),
@@ -795,7 +789,7 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
     "merged",
   );
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /proposta #200 fusionada/u);
+  assert.equal(sent[0].text, mergeReports.reconciled(mergedTarget));
   assert.equal(
     service.queue
       .traceEntries()
@@ -837,7 +831,7 @@ async function runMergeCommand(
   const { environment } = environmentFor(context);
   const replies = [];
   const membershipChecks = [];
-  const merges = [];
+  const github = mergeGithub();
   const commit = "a".repeat(40);
   const service = await startService({
     environment,
@@ -867,38 +861,7 @@ async function runMergeCommand(
         return { message_id: 70 + replies.length };
       },
     },
-    github: {
-      async getPullRequest() {
-        return {
-          ...mergedPullRequest,
-          state: "open",
-          merged: false,
-          mergeCommitSha: null,
-          previewLabeled: true,
-        };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "success" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-      async getChangedPaths() {
-        const paths = ["apps/web/src/content/posts/la-cursa.yaml"];
-        return { paths, presentPaths: paths };
-      },
-      async getTreeModes() {
-        return new Map([
-          ["apps/web/src/content/posts/la-cursa.yaml", "100644"],
-        ]);
-      },
-      async mergePullRequest({ number, sha }) {
-        merges.push({ number, sha });
-        return { mergeCommitSha: "b".repeat(40) };
-      },
-    },
+    github,
   });
   service.ciWatches.add({
     updateIdentifier: 10,
@@ -933,7 +896,12 @@ async function runMergeCommand(
     await service.bridge.executeNext();
   }
 
-  const outcome = { replies, membershipChecks, merges, service };
+  const outcome = {
+    replies,
+    membershipChecks,
+    merges: github.merges,
+    service,
+  };
   service.previewRequests.close();
   service.mergeRequests.close();
   service.ciWatches.close();
@@ -970,13 +938,10 @@ test("the current preview receives only the fixed question and only its author's
     ],
   });
   assert.equal(replies.length, 3);
-  assert.match(replies[2], /ja s'havia atès/u);
-  assert.equal(
-    replies[0],
-    "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
-  );
+  assert.equal(replies[2], mergeReports.alreadyHandled);
+  assert.equal(replies[0], mergeReports.question);
   assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
-  assert.match(replies[1], /La proposta #200 ja està fusionada/u);
+  assert.equal(replies[1], mergeReports.merged(mergedTarget));
   assert.equal(membershipChecks.length, 6);
 });
 
@@ -989,8 +954,8 @@ test("revoking membership between the question and the confirmation refuses the 
     followups: [mergeReply(101, 71, "Sí, a producció")],
   });
   assert.equal(replies.length, 2);
-  assert.match(replies[0], /Respon «Sí, a producció»/u);
-  assert.match(replies[1], /Ja no constes com a membre/u);
+  assert.equal(replies[0], mergeReports.question);
+  assert.equal(replies[1], mergeReports.membershipRevoked);
   assert.deepEqual(merges, []);
 });
 
@@ -998,7 +963,7 @@ test("an out-of-context validation still receives the working acknowledgement", 
   const { replies, merges } = await runMergeCommand(context, {
     updates: [mergeReply(100, 99, "La feina està validada")],
   });
-  assert.equal(replies[0], "Hi estic treballant.");
+  assert.equal(replies[0], workingNotice);
   assert.deepEqual(merges, []);
 });
 
@@ -1009,7 +974,7 @@ test("merges through the bridge after verifying the membership again at executio
 
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
-  assert.match(replies.at(-1), /La proposta #200 ja està fusionada/u);
+  assert.equal(replies.at(-1), mergeReports.merged(mergedTarget));
 });
 
 test("a green CI notice without a delivered preview cannot authorize a merge through the bridge", async (context) => {
@@ -1018,7 +983,7 @@ test("a green CI notice without a delivered preview cannot authorize a merge thr
   });
 
   assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+  assert.equal(replies.at(-1), mergeReports.noDeliveredPreview);
 });
 
 test("a newer publication without a preview record invalidates the earlier notice even at the same SHA", async (context) => {
@@ -1035,7 +1000,7 @@ test("a newer publication without a preview record invalidates the earlier notic
   });
 
   assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+  assert.equal(replies.at(-1), mergeReports.noDeliveredPreview);
 });
 
 test("keeps the result of a merge for the next turn of the session", async (context) => {
@@ -1043,7 +1008,7 @@ test("keeps the result of a merge for the next turn of the session", async (cont
 
   const notes = service.sessionNotes.claim("-1001234567890:7");
   assert.equal(notes.length, 1);
-  assert.match(notes[0].text, /La proposta #200 ja està fusionada/u);
+  assert.equal(notes[0].text, mergeReports.merged(mergedTarget));
   service.sessionNotes.close();
 });
 
@@ -1054,7 +1019,7 @@ test("does not merge when the author left the group between admission and execut
 
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /Ja no constes com a membre del grup/u);
+  assert.equal(replies.at(-1), mergeReports.membershipRevoked);
 });
 
 test("never reaches the merge for a command outside the configured group topic or from a non-member", async (context) => {
@@ -1089,7 +1054,10 @@ test("refuses the merge while the topic has another instruction waiting", async 
   });
 
   assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
+  assert.equal(
+    replies.at(-1),
+    mergeReports.newerWork({ pullRequestNumber: 200 }),
+  );
 });
 
 test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {

@@ -10,6 +10,13 @@ import {
   mergeConfirmationIntent,
   mergeQuestionLifetimeMilliseconds,
 } from "./merge-request.mjs";
+import { mergeReports } from "../policy/development.mjs";
+import {
+  deliveredPreviews,
+  mergedPullRequest,
+  mergeGithub,
+  openPullRequest,
+} from "./test-support/github.mjs";
 
 const repository = "rboixaderg/mountain-runners";
 const groupIdentifier = "-1001234567890";
@@ -18,83 +25,18 @@ const memberIdentifier = 555;
 const pullRequestNumber = 200;
 const commit = "a".repeat(40);
 const mergeCommit = "b".repeat(40);
+const target = { pullRequestNumber, commit };
+const reviewUrl = `https://github.com/${repository}/pull/${pullRequestNumber}`;
+const mergedTarget = {
+  pullRequestNumber,
+  mergeCommit,
+  pullRequestUrl: reviewUrl,
+};
 const publicationUpdateIdentifier = 12;
 const noticeMessageIdentifier = 800;
 const questionMessageIdentifier = 900;
 const validationText = "La feina està validada";
 const confirmationText = "Sí, a producció";
-const fixedQuestion =
-  "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.";
-
-function openPullRequest(overrides = {}) {
-  return {
-    state: "open",
-    htmlUrl: `https://github.com/${repository}/pull/${pullRequestNumber}`,
-    headSha: commit,
-    headRepository: repository,
-    draft: false,
-    baseRef: "main",
-    mergeableState: "clean",
-    merged: false,
-    mergeCommitSha: null,
-    previewLabeled: true,
-    previewRevoked: false,
-    ...overrides,
-  };
-}
-
-function mergedPullRequest() {
-  return openPullRequest({
-    state: "closed",
-    merged: true,
-    mergeCommitSha: mergeCommit,
-  });
-}
-
-function fakeGithub(overrides = {}) {
-  const github = {
-    pullRequest: openPullRequest(),
-    checkRuns: [
-      { name: "Validate", status: "completed", conclusion: "success" },
-    ],
-    statuses: [],
-    merges: [],
-    reads: 0,
-    readError: null,
-    mergeError: null,
-    mergeResponse: { mergeCommitSha: mergeCommit },
-    changedPaths: ["apps/web/src/content/posts/la-cursa.yaml"],
-    changedPathsError: null,
-    ...overrides,
-    async getPullRequest() {
-      github.reads += 1;
-      if (github.readError) throw github.readError;
-      return github.pullRequest;
-    },
-    async getCommitCheckRuns() {
-      return github.checkRuns;
-    },
-    async getCommitStatuses() {
-      return github.statuses;
-    },
-    async getChangedPaths() {
-      if (github.changedPathsError) throw github.changedPathsError;
-      return {
-        paths: github.changedPaths,
-        presentPaths: github.changedPaths,
-      };
-    },
-    async getTreeModes() {
-      return new Map(github.changedPaths.map((path) => [path, "100644"]));
-    },
-    async mergePullRequest({ number, sha }) {
-      github.merges.push({ number, sha });
-      if (github.mergeError) throw github.mergeError;
-      return github.mergeResponse;
-    },
-  };
-  return github;
-}
 
 function deliveredPreviewRow({
   publicationUpdate = publicationUpdateIdentifier,
@@ -110,22 +52,7 @@ function deliveredPreviewRow({
   };
 }
 
-function deliveredPreviews() {
-  const rows = new Map();
-  return {
-    deliver(topicSessionKey, row) {
-      rows.set(topicSessionKey, row);
-    },
-    clear(topicSessionKey) {
-      rows.delete(topicSessionKey);
-    },
-    find(topicSessionKey) {
-      return rows.get(topicSessionKey);
-    },
-  };
-}
-
-function setup(context, { github = fakeGithub() } = {}) {
+function setup(context, { github = mergeGithub() } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-merge-confirmation-"));
   context.after(() =>
     rmSync(directory, {
@@ -287,16 +214,14 @@ function assertQuiet(result) {
 function assertInvalidQuestion(result) {
   assert.deepEqual(result, {
     outcome: "merge_context",
-    report:
-      "Aquesta confirmació no és vàlida. No s'ha fusionat res. Torna a respondre «La feina està validada» a l'últim avís de la preview.",
+    report: mergeReports.invalidQuestion,
   });
 }
 
 function assertAlreadyHandled(result) {
   assert.deepEqual(result, {
     outcome: "merge_context",
-    report:
-      "Aquesta petició de merge ja s'havia atès. No s'ha fusionat res de nou.",
+    report: mergeReports.alreadyHandled,
   });
 }
 
@@ -419,7 +344,7 @@ test("asks the fixed question as a reply to the delivered notice", async (contex
 
   assert.deepEqual(result, { outcome: "merge_context" });
   assert.equal(scenario.attempts.length, 1);
-  assert.equal(scenario.attempts[0].text, fixedQuestion);
+  assert.equal(scenario.attempts[0].text, mergeReports.question);
   assert.equal(scenario.attempts[0].chatIdentifier, Number(groupIdentifier));
   assert.equal(scenario.attempts[0].messageThreadIdentifier, 7);
   const question = storedQuestion(scenario);
@@ -559,7 +484,10 @@ test("validating a pull request that changes infrastructure refuses instead of a
   const result = await validate(scenario);
 
   assert.equal(result.outcome, "merge_context");
-  assert.match(result.report, /la persona que manté el servei/u);
+  assert.equal(
+    result.report,
+    mergeReports.infrastructureChanges({ reviewUrl }),
+  );
   assert.equal(scenario.attempts.length, 0);
   assert.equal(storedQuestion(scenario), undefined);
   assert.equal(scenario.traces.at(-1).action, "merge_refused");
@@ -647,7 +575,7 @@ test("the matching reply from the same member merges the pinned preview once", a
   const result = await confirm(scenario);
 
   assert.equal(result.outcome, "merge_context");
-  assert.match(result.report, /ja està fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
@@ -770,7 +698,7 @@ test("another member's reply leaves the question for the member it was fixed to"
 
   const result = await confirm(scenario);
 
-  assert.match(result.report, /ja està fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
@@ -783,7 +711,7 @@ for (const [name, prepare, expected] of [
       scenario.deliverPreview(
         deliveredPreviewRow({ notice: 801, publicationUpdate: 13 }),
       ),
-    /ja no correspon a la feina vigent/u,
+    mergeReports.staleQuestion,
   ],
   [
     "the delivered commit changes",
@@ -791,42 +719,42 @@ for (const [name, prepare, expected] of [
       scenario.deliverPreview(
         deliveredPreviewRow({ commitSha: "c".repeat(40) }),
       ),
-    /ja no correspon a la feina vigent/u,
+    mergeReports.staleQuestion,
   ],
   [
     "instructions arrive after the question",
     (scenario) => {
       scenario.intervening.value = true;
     },
-    /ja no correspon a la feina vigent/u,
+    mergeReports.staleQuestion,
   ],
   [
     "the pull request changes infrastructure",
     (scenario) => {
       scenario.github.changedPaths = ["apps/web/package.json"];
     },
-    /les eines o la configuració del projecte/u,
+    mergeReports.infrastructureChanges({ reviewUrl }),
   ],
   [
     "the changed files cannot be read",
     (scenario) => {
       scenario.github.changedPathsError = new Error("network");
     },
-    /No he pogut llegir com està/u,
+    mergeReports.unreadable(target),
   ],
   [
     "the preview label is removed",
     (scenario) => {
       scenario.github.pullRequest = openPullRequest({ previewLabeled: false });
     },
-    /no té la preview activada/u,
+    mergeReports.noPreviewLabel(target),
   ],
   [
     "the preview is revoked",
     (scenario) => {
       scenario.github.pullRequest = openPullRequest({ previewRevoked: true });
     },
-    /s'ha retirat/u,
+    mergeReports.previewRevoked(target),
   ],
   [
     "the checks stop being green",
@@ -835,7 +763,7 @@ for (const [name, prepare, expected] of [
         { name: "Validate", status: "completed", conclusion: "failure" },
       ];
     },
-    /encara no estan totes en verd/u,
+    mergeReports.checksNotGreen(target),
   ],
   [
     "the head moves",
@@ -844,14 +772,14 @@ for (const [name, prepare, expected] of [
         headSha: "c".repeat(40),
       });
     },
-    /ha canviat des que te la vaig informar/u,
+    mergeReports.headMoved(target),
   ],
   [
     "newer work appears",
     (scenario) => {
       scenario.newerWork.value = true;
     },
-    /feina més nova que l'últim avís/u,
+    mergeReports.newerWork(target),
   ],
 ]) {
   test(`a confirmation is refused when ${name}`, async (context) => {
@@ -863,7 +791,7 @@ for (const [name, prepare, expected] of [
     const result = await confirm(scenario);
 
     assert.equal(result.outcome, "merge_context");
-    assert.match(result.report, expected);
+    assert.equal(result.report, expected);
     assert.deepEqual(scenario.github.merges, []);
     assert.notEqual(storedQuestion(scenario).consumed_at, null);
   });
@@ -906,7 +834,7 @@ for (const [
       scenario.store.markUncertain(40);
       scenario.github.pullRequest = mergedPullRequest();
     },
-    /GitHub mostra la proposta #200 fusionada/u,
+    mergeReports.reconciled(mergedTarget),
     "merged",
   ],
   [
@@ -921,7 +849,7 @@ for (const [
       });
       scenario.store.markUncertain(40);
     },
-    /No sé si un merge anterior de la proposta #200 s'ha fet/u,
+    mergeReports.uncertainOpen(target),
     "uncertain",
     new RegExp(`/merge ${pullRequestNumber} ${commit}`, "u"),
   ],
@@ -936,7 +864,7 @@ for (const [
         commitSha: commit,
       });
     },
-    /Ja hi ha un merge de la proposta #200 en curs/u,
+    mergeReports.alreadyInProgress(target),
     "merging",
   ],
 ]) {
@@ -949,7 +877,7 @@ for (const [
     const result = await confirm(scenario);
 
     assert.equal(result.outcome, "merge_context");
-    assert.match(result.report, expectedReport);
+    assert.equal(result.report, expectedReport);
     if (expectedDetail !== undefined) {
       assert.match(result.report, expectedDetail);
     }
@@ -968,7 +896,7 @@ test("a restart keeps the question usable and never consumes it twice", async (c
   scenario.reopen();
 
   const result = await confirm(scenario);
-  assert.match(result.report, /ja està fusionada/u);
+  assert.equal(result.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
@@ -995,7 +923,7 @@ test("re-verifies membership at confirmation and leaves the question unconsumed 
   };
   const revoked = await confirm(scenario, { updateIdentifier: 21 });
   assert.equal(revoked.outcome, "merge_context");
-  assert.match(revoked.report, /Ja no constes com a membre/u);
+  assert.equal(revoked.report, mergeReports.membershipRevoked);
   assert.equal(scenario.github.reads, readsAfterValidation);
   assert.deepEqual(scenario.github.merges, []);
   assert.equal(storedQuestion(scenario).consumed_at, null);
@@ -1006,7 +934,7 @@ test("re-verifies membership at confirmation and leaves the question unconsumed 
   };
   const unavailable = await confirm(scenario, { updateIdentifier: 22 });
   assert.equal(unavailable.outcome, "merge_context");
-  assert.match(unavailable.report, /no he pogut comprovar que siguis membre/u);
+  assert.equal(unavailable.report, mergeReports.membershipUnavailable);
   assert.equal(scenario.github.reads, readsAfterValidation);
   assert.deepEqual(scenario.github.merges, []);
   assert.equal(storedQuestion(scenario).consumed_at, null);
@@ -1017,7 +945,7 @@ test("re-verifies membership at confirmation and leaves the question unconsumed 
     instruction: "si, produccio",
   });
   assert.equal(retried.outcome, "merge_context");
-  assert.match(retried.report, /ja està fusionada/u);
+  assert.equal(retried.report, mergeReports.merged(mergedTarget));
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
@@ -1041,7 +969,7 @@ test("refuses cleanly on GitHub read errors during validation and confirmation",
 
   const confirmResult = await confirm(confirmScenario);
   assert.equal(confirmResult.outcome, "merge_context");
-  assert.match(confirmResult.report, /No he pogut llegir com està/u);
+  assert.equal(confirmResult.report, mergeReports.unreadable(target));
   assert.deepEqual(confirmScenario.github.merges, []);
   assert.notEqual(storedQuestion(confirmScenario).consumed_at, null);
 });
@@ -1055,7 +983,7 @@ test("refuses confirmation when the pull request is already merged", async (cont
   const result = await confirm(scenario);
 
   assert.equal(result.outcome, "merge_context");
-  assert.match(result.report, /ja està fusionada\. No he fet res més/u);
+  assert.equal(result.report, mergeReports.alreadyMerged(mergedTarget));
   assert.deepEqual(scenario.github.merges, []);
   assert.notEqual(storedQuestion(scenario).consumed_at, null);
 });
@@ -1093,7 +1021,7 @@ test("records private trace actions without conversation text", async (context) 
 
 test("validating a behind branch synchronises without the old question", async (context) => {
   const scenario = setup(context, {
-    github: fakeGithub({
+    github: mergeGithub({
       pullRequest: openPullRequest({
         mergeableState: "behind",
         headRef: "work",
@@ -1134,7 +1062,7 @@ for (const [name, prepare] of [
 ]) {
   test(`validating a behind branch as ${name} never synchronises`, async (context) => {
     const scenario = setup(context, {
-      github: fakeGithub({
+      github: mergeGithub({
         pullRequest: openPullRequest({ mergeableState: "behind" }),
       }),
     });

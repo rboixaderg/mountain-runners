@@ -8,8 +8,10 @@ import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import {
   failedMaintainerNotice,
   previewConfirmationTimeoutMilliseconds,
+  previewReports,
 } from "../policy/development.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
+import { publisherComment } from "./test-support/github.mjs";
 
 const repository = "rboixaderg/mountain-runners";
 const commit = "a".repeat(40);
@@ -35,7 +37,7 @@ function fixture(context, now) {
   return { previews };
 }
 
-function openPullRequest(headSha = commit) {
+function previewedPullRequest(headSha = commit) {
   return {
     state: "open",
     headSha,
@@ -45,20 +47,12 @@ function openPullRequest(headSha = commit) {
   };
 }
 
-function publisherComment(commitSha = commit, pullRequestNumber = 200) {
-  return {
-    user: { login: "github-actions[bot]" },
-    body: `<!-- mountain-runners-preview -->\nPreview publicada: https://pr-${pullRequestNumber}.preview.mountainrunners.cat\nCommit: \`${commitSha}\`.`,
-    updated_at: "2026-11-14T10:05:00Z",
-  };
-}
-
 function fakeGithub() {
   // The fake has no operation to comment, to label or to read checks or
   // workflow runs: the handler must never post `/preview`, set a label or wait
   // for green checks, and such a call fails.
   const github = {
-    pullRequests: { 200: openPullRequest() },
+    pullRequests: { 200: previewedPullRequest() },
     comments: { 200: [] },
     readError: null,
     listError: null,
@@ -255,7 +249,14 @@ test("a synchronized publication only asks to review again once its preview noti
   telegram.sendError = null;
   await buildHandler().runOnce();
 
-  assert.match(sent[0].text, /Revisa-la i torna a demanar el merge/u);
+  assert.equal(
+    sent[0].text,
+    previewReports.confirmed({
+      origin,
+      reviewUrl: `https://github.com/${repository}/pull/200`,
+      mergeSynchronization: true,
+    }),
+  );
   assert.equal(
     previews.deliveredPublicationPreview(deliveredNotice())
       .notice_message_identifier,
@@ -274,7 +275,7 @@ test("revocation of a synchronized preview informs the topic without delivering 
 
   await handler.runOnce();
 
-  assert.match(sent[0].text, /ja no és disponible/u);
+  assert.equal(sent[0].text, previewReports.mergeSyncWithdrawn);
   assert.equal(previews.state(10), "failed");
   assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
 });
@@ -309,7 +310,10 @@ test("two publications in a row report only the final head, once", async (contex
   handler.followPublication(publication(11, { commit: newerCommit }));
   github.pullRequests[200].headSha = newerCommit;
   // The publisher confirmed both heads: only the final one is announced.
-  github.comments[200] = [publisherComment(), publisherComment(newerCommit)];
+  github.comments[200] = [
+    publisherComment(),
+    publisherComment({ commit: newerCommit }),
+  ];
 
   await handler.runOnce();
   await handler.runOnce();
@@ -382,13 +386,18 @@ for (const [name, changes, reason] of withdrawalCases) {
 
 test("previews of two pull requests awaiting together never supersede each other", async (context) => {
   const { handler, github, previews, sent } = setup(context);
-  github.pullRequests[201] = openPullRequest(newerCommit);
+  github.pullRequests[201] = previewedPullRequest(newerCommit);
   handler.followPublication(publication(10));
   handler.followPublication(
     publication(11, { pullRequestNumber: 201, commit: newerCommit }),
   );
   github.comments[200] = [publisherComment()];
-  github.comments[201] = [publisherComment(newerCommit, 201)];
+  github.comments[201] = [
+    publisherComment({
+      commit: newerCommit,
+      origin: "https://pr-201.preview.mountainrunners.cat",
+    }),
+  ];
 
   await handler.runOnce();
 
