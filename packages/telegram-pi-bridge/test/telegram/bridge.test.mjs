@@ -440,6 +440,7 @@ test("keeps the acknowledgement to one short line", () => {
   const longExcerpt = instructionExcerpt("x".repeat(300));
   assert.equal(longExcerpt.length, maximumAcknowledgementExcerptLength);
   assert.match(longExcerpt, /…$/u);
+  assert.equal(instructionExcerpt("abc😀 final", 5), "abc…");
 });
 
 test("denies an instruction from a person outside the group", async (t) => {
@@ -1793,4 +1794,155 @@ test("advances the overflow offset page by page without skipping updates", async
       .filter((entry) => entry.action === "instruction_duplicate"),
     [],
   );
+});
+
+test("reads the later images before admitting an album that expired during slow work", async (t) => {
+  const { queue } = context(t);
+  let clock = 0;
+  const updates = [albumUpdate(10, 7, captionFor("dues fotos"))];
+  const telegram = redeliveringTelegram(updates);
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+  // A long turn: the second image arrives while nobody reads Telegram.
+  updates.push(albumUpdate(11, 7));
+  clock = 60_000;
+  await bridge.pollOnce();
+
+  assert.deepEqual(
+    queue.next().attachments.map((attachment) => attachment.fileIdentifier),
+    ["photo-10", "photo-11"],
+  );
+  assert.equal(queue.readOffset(), 12);
+});
+
+/** The next admission fails like a locked database. */
+function failNextAdmission(queue, failingUpdateIdentifier) {
+  const admit = queue.admit.bind(queue);
+  let failed = false;
+  queue.admit = (instruction) => {
+    if (!failed && instruction.updateIdentifier === failingUpdateIdentifier) {
+      failed = true;
+      throw new Error("SQLITE_BUSY");
+    }
+    return admit(instruction);
+  };
+}
+
+test("reads an update again when its admission fails", async (t) => {
+  const { queue } = context(t);
+  const telegram = redeliveringTelegram([instructionUpdate(10, 7)]);
+  const bridge = bridgeFor({ queue, telegram });
+  failNextAdmission(queue, 10);
+
+  await assert.rejects(bridge.pollOnce(), /SQLITE_BUSY/u);
+  await bridge.pollOnce();
+
+  assert.equal(queue.status(10), "pending");
+  assert.equal(queue.readOffset(), 11);
+});
+
+test("keeps an album whose admission fails", async (t) => {
+  const { queue } = context(t);
+  // The other session is consumed first, past the album's identifier.
+  const telegram = redeliveringTelegram([
+    albumUpdate(10, 7, captionFor("una foto")),
+    instructionUpdate(11, 8),
+  ]);
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+  });
+  failNextAdmission(queue, 10);
+
+  await assert.rejects(bridge.pollOnce(), /SQLITE_BUSY/u);
+  await bridge.pollOnce();
+
+  assert.equal(queue.status(10), "pending");
+  assert.equal(queue.readOffset(), 12);
+});
+
+test("holds the offset for a deferred update whose admission fails", async (t) => {
+  const { queue } = context(t);
+  const telegram = redeliveringTelegram([
+    albumUpdate(10, 7, captionFor("una foto")),
+    instructionUpdate(11, 7),
+    instructionUpdate(12, 8),
+  ]);
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+  });
+  failNextAdmission(queue, 11);
+
+  await assert.rejects(bridge.pollOnce(), /SQLITE_BUSY/u);
+  await bridge.pollOnce();
+
+  assert.equal(queue.status(11), "pending");
+  assert.equal(queue.readOffset(), 13);
+});
+
+test("never splits a surrogate pair when it cuts a long answer", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => ({
+      outcome: "answered",
+      report: `${"a".repeat(3998)}😀 final`,
+    }),
+  });
+
+  await bridge.pollOnce();
+  await bridge.executeNext();
+
+  assert.equal(telegram.sent.at(-1).text, `${"a".repeat(3998)}…`);
+});
+
+test("does not deadlock behind a newer album when a deferred admission fails", async (t) => {
+  const { queue } = context(t);
+  let clock = 0;
+  const updates = [
+    albumUpdate(10, 7, captionFor("primer album")),
+    instructionUpdate(11, 7),
+  ];
+  const telegram = redeliveringTelegram(updates);
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+  failNextAdmission(queue, 11);
+
+  await bridge.pollOnce();
+  clock = 800;
+  updates.push(
+    albumUpdate(13, 7, {
+      media_group_id: "album-2",
+      ...captionFor("segon album"),
+    }),
+  );
+  await bridge.pollOnce();
+  clock = 1100;
+  await assert.rejects(bridge.pollOnce(), /SQLITE_BUSY/u);
+  await bridge.pollOnce();
+  clock = 10_000;
+  await bridge.pollOnce();
+
+  assert.equal(queue.status(11), "pending");
+  assert.equal(queue.status(13), "pending");
+  assert.equal(queue.readOffset(), 14);
 });
