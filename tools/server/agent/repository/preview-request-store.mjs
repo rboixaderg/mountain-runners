@@ -172,11 +172,14 @@ export class PreviewRequestStore {
     mergeSynchronization = false,
   }) {
     this.#transaction(() => {
-      this.endReplacedMergeSynchronizations({
-        updateIdentifier,
-        pullRequestNumber,
-      });
       const timestamp = this.#now().toISOString();
+      this.#database
+        .prepare(
+          `UPDATE preview_requests SET state = 'failed', updated_at = ?
+           WHERE pull_request_number = ? AND merge_synchronization = 1
+             AND state = 'awaiting' AND update_identifier != ?`,
+        )
+        .run(timestamp, pullRequestNumber, updateIdentifier);
       this.#database
         .prepare(
           `INSERT INTO preview_requests
@@ -205,20 +208,6 @@ export class PreviewRequestStore {
           Number(mergeSynchronization),
         );
     });
-  }
-
-  /**
-   * End the awaiting merge synchronizations of a pull request that a later
-   * publication of the service, `updateIdentifier`, replaced.
-   */
-  endReplacedMergeSynchronizations({ updateIdentifier, pullRequestNumber }) {
-    this.#database
-      .prepare(
-        `UPDATE preview_requests SET state = 'failed', updated_at = ?
-         WHERE pull_request_number = ? AND merge_synchronization = 1
-           AND state = 'awaiting' AND update_identifier != ?`,
-      )
-      .run(this.#now().toISOString(), pullRequestNumber, updateIdentifier);
   }
 
   #transition(

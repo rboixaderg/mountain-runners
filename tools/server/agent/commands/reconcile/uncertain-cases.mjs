@@ -4,8 +4,9 @@
 // state, because the external effect may or may not have happened. A person with
 // root access reads the real state here and closes the case with an explicit
 // decision. Nothing is executed again and nothing is pushed, commented or merged:
-// the only writes are the durable store, the published-head mark of an
-// instruction whose head is confirmed and the private trace.
+// the only writes are the durable stores, the published-head mark of an
+// instruction whose head is confirmed, the missing `preview` label of the pull
+// request that instruction opened and the private trace.
 //
 // A resolution is never kept without its trace. The instruction transition and
 // its trace share the admission database, so they are one transaction. A merge
@@ -280,17 +281,7 @@ function registerConfirmedWatch({
  * case uncertain for a later attempt, and a marker of a confirmed commit is
  * never wrong. Any other local state is left untouched for a continuation.
  */
-async function recordConfirmedPublication({
-  config,
-  identifiers,
-  sessionKey,
-  commit,
-}) {
-  const worktree = await findSessionWorktree({
-    repositoryPath: config.paths.repository,
-    worktreeRoot: config.paths.worktrees,
-    name: identifiers.worktreeName(sessionKey),
-  });
+async function recordConfirmedPublication({ worktree, commit }) {
   if (worktree === null) {
     return;
   }
@@ -300,10 +291,77 @@ async function recordConfirmedPublication({
   recordPublication(worktree, commit);
 }
 
+/**
+ * Why a pull request cannot be the first publication of a topic, or null. A
+ * branch name alone does not identify it: a fork can use the same one.
+ */
+function firstPublicationRefusal({ pullRequest, repository, branch, commit }) {
+  if (pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()) {
+    return "does not come from the configured repository";
+  }
+  if (branch !== pullRequest.headRef) {
+    return "is not on the branch of the topic worktree";
+  }
+  if (pullRequest.baseRef !== "main") {
+    return "does not target main";
+  }
+  if (pullRequest.state !== "open") {
+    return "is not open";
+  }
+  if (pullRequest.previewRevoked) {
+    return "has its preview revoked";
+  }
+  if (pullRequest.headSha !== commit) {
+    return `has moved: its head is ${pullRequest.headSha}, not the --commit value`;
+  }
+  return null;
+}
+
+/**
+ * A topic without a binding published its first pull request in this
+ * instruction. As a normal publication does, the pull request gets the
+ * `preview` label if it lacks it and the topic is bound to it. The binding is
+ * permanent, so the pull request is verified first. The label comes before the
+ * binding: a bound topic is never labelled again.
+ */
+async function restoreFirstPublication({
+  stores,
+  github,
+  repository,
+  worktree,
+  sessionKey,
+  pullRequestNumber,
+  commit,
+}) {
+  const pullRequest = await github.getPullRequest({
+    number: pullRequestNumber,
+  });
+  const refusal = firstPublicationRefusal({
+    pullRequest,
+    repository,
+    branch: worktree === null ? null : await currentBranch(worktree),
+    commit,
+  });
+  if (refusal !== null) {
+    throw new ReconcileCaseError(
+      `Pull request #${pullRequestNumber} ${refusal}.`,
+    );
+  }
+  if (!pullRequest.previewLabeled) {
+    await github.addPreviewLabel({ number: pullRequestNumber });
+  }
+  stores.topicJobs.bind({
+    sessionKey,
+    branch: pullRequest.headRef,
+    pullRequestNumber,
+  });
+}
+
 async function resolveInstruction({
   config,
   stores,
   identifiers,
+  github,
   updateIdentifier,
   resolution,
   commit,
@@ -329,6 +387,32 @@ async function resolveInstruction({
   };
 
   if (published) {
+    if (!stores.topicJobs || !stores.previews) {
+      throw new ReconcileCaseError(
+        "The topic job or preview request database is missing; the publication cannot be restored.",
+      );
+    }
+    const worktree = await findSessionWorktree({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      name: identifiers.worktreeName(row.session_key),
+    });
+    const binding = stores.topicJobs.bindingOf(row.session_key);
+    if (binding === null) {
+      await restoreFirstPublication({
+        stores,
+        github,
+        repository: config.github.repository,
+        worktree,
+        sessionKey: row.session_key,
+        pullRequestNumber,
+        commit,
+      });
+    } else if (binding.pullRequestNumber !== pullRequestNumber) {
+      throw new ReconcileCaseError(
+        `The topic is bound to pull request #${binding.pullRequestNumber}, not #${pullRequestNumber}.`,
+      );
+    }
     registerConfirmedWatch({
       stores,
       sessionKey: row.session_key,
@@ -336,38 +420,21 @@ async function resolveInstruction({
       pullRequestNumber,
       commit,
     });
-    await recordConfirmedPublication({
-      config,
-      identifiers,
+    await recordConfirmedPublication({ worktree, commit });
+    stores.previews.track({
+      updateIdentifier,
       sessionKey: row.session_key,
-      commit,
+      authorIdentifier: row.author_identifier,
+      pullRequestNumber,
+      commitSha: commit,
+      mergeSynchronization: stores.instructions
+        .traceEntries()
+        .some(
+          (entry) =>
+            entry.update_identifier === updateIdentifier &&
+            entry.action === mergeSynchronizationRequestedAction,
+        ),
     });
-    const synchronization = stores.instructions
-      .traceEntries()
-      .find(
-        (entry) =>
-          entry.update_identifier === updateIdentifier &&
-          entry.action === mergeSynchronizationRequestedAction,
-      );
-    if (synchronization) {
-      if (!stores.previews) {
-        throw new ReconcileCaseError("The preview request store is missing.");
-      }
-      stores.previews.track({
-        updateIdentifier,
-        sessionKey: row.session_key,
-        authorIdentifier: synchronization.author_identifier,
-        pullRequestNumber,
-        commitSha: commit,
-        mergeSynchronization: true,
-      });
-    } else {
-      // No preview database means no row to end.
-      stores.previews?.endReplacedMergeSynchronizations({
-        updateIdentifier,
-        pullRequestNumber,
-      });
-    }
   }
 
   // The transition and its trace are one transaction: the instruction is never
@@ -482,6 +549,7 @@ function resolveCase({
         config,
         stores,
         identifiers: instructionIdentifiers(config),
+        github,
         updateIdentifier,
         resolution,
         commit,
