@@ -296,6 +296,19 @@ permís ni canvia cap credencial; la implementació són les tasques T2 i T26.
   membres, el merge fixat a la preview confirmada i la prohibició que l'agent
   desplegui es mantenen.
 
+**Revisió del 25 de novembre de 2026.** La persona mantenidora amplia el que es
+pot fusionar des del tema: substitueix «Merge només de contingut» per tot excepte
+infraestructura. El servei refusa si algun camí canviat, amb tots dos noms d'un
+reanomenament, és a l'arrel del repositori o directament a `apps/web/`; és sota
+`.github/`, `.agents/`, `.claude/`, `.husky/`, `.opencode/`, `tools/`,
+`packages/`, `apps/web/scripts/` o `apps/web/project.inlang/`; té algun nom que
+comença per punt, o és un `package.json`, `tsconfig*.json` o `*.config.*`. La
+resta, com els components, els estils, les pàgines i el contingut, es pot
+fusionar. Motiu: els membres també canvien l'estructura HTML i els estils.
+S'accepta que el codi de l'aplicació que fusiona un membre s'executi al build de
+producció a GitHub Actions. Els enllaços simbòlics, els submòduls i els fitxers
+executables es continuen refusant.
+
 ## Esmena (cerca web i revisió abans del push, 24 de novembre de 2026)
 
 Acceptada per la persona mantenidora. Aquesta esmena concreta la frontera de la

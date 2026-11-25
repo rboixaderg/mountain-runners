@@ -58,17 +58,18 @@ const webFastGateRoots = [
   "apps/web/messages",
   "apps/web/public",
 ];
-// The only files a merge asked in the topic may change: per content root, the
-// extensions the web reads as data. Code that reaches `main` runs with
-// privileges, wherever it is, so the maintainer merges any other change (ADR
-// 0013).
-const contentExtensions = [
-  ["apps/web/src/content", [".yaml"]],
-  [
-    "apps/web/src/content-assets",
-    [".avif", ".jpeg", ".jpg", ".pdf", ".png", ".webp"],
-  ],
+// Infrastructure a merge asked in the topic may not change: the maintainer
+// merges it on GitHub (ADR 0013). It is also any file directly in these
+// directories, any hidden path and, anywhere, a manifest or configuration file.
+const infrastructureDirectories = [".", "apps/web"];
+const infrastructureRoots = [
+  "apps/web/project.inlang",
+  "apps/web/scripts",
+  "packages",
+  "tools",
 ];
+const infrastructureFileName =
+  /^(?:package\.json|tsconfig.*\.json)$|\.config\./u;
 export const sandboxPrepareCommand = [
   "export HOME=/tmp npm_config_manage_package_manager_versions=false",
   "PNPM_VERSION=$(pnpm --version)",
@@ -90,19 +91,18 @@ function isInside(path, roots) {
   return roots.some((root) => path.startsWith(`${root}/`));
 }
 
-function isContentFile(path) {
+function isInfrastructureFile(path) {
   return (
-    !path.split("/").some((segment) => segment.startsWith(".")) &&
-    contentExtensions.some(
-      ([root, extensions]) =>
-        isInside(path, [root]) && extensions.includes(posix.extname(path)),
-    )
+    infrastructureDirectories.includes(posix.dirname(path)) ||
+    isInside(path, infrastructureRoots) ||
+    path.split("/").some((segment) => segment.startsWith(".")) ||
+    infrastructureFileName.test(posix.basename(path))
   );
 }
 
-/** Whether a change is content only. An empty list proves nothing. */
-export function changesOnlyContent(paths) {
-  return paths.length > 0 && paths.every(isContentFile);
+/** Whether a change leaves infrastructure alone. An empty list proves nothing. */
+export function changesNoInfrastructure(paths) {
+  return paths.length > 0 && !paths.some(isInfrastructureFile);
 }
 
 /**
@@ -892,9 +892,9 @@ export const mergeReports = {
     `La proposta #${pullRequestNumber} no està al dia amb la resta del projecte. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
   notClean: ({ pullRequestNumber }) =>
     `GitHub no considera la proposta #${pullRequestNumber} a punt per fusionar, perquè hi ha conflictes o comprovacions pendents. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
-  nonContentChanges: ({ reviewUrl }) =>
+  infrastructureChanges: ({ reviewUrl }) =>
     withReviewLink(
-      "Aquest canvi toca parts del web que ha de revisar la persona que manté el servei. No s'ha publicat res.",
+      "Aquest canvi toca les eines o la configuració del projecte, i ho ha de revisar la persona que manté el servei. No s'ha publicat res.",
       reviewUrl,
     ),
   unreadable: ({ pullRequestNumber }) =>

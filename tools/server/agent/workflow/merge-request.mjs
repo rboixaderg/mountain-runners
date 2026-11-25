@@ -28,7 +28,7 @@ import {
   sleep,
 } from "../repository/request-signal.mjs";
 import {
-  changesOnlyContent,
+  changesNoInfrastructure,
   mergeReports,
   mergeSynchronizationRequestedAction,
   pullRequestReviewUrl,
@@ -39,7 +39,7 @@ const mergeCommandPrefix = "/merge";
 const mergeCommandPattern =
   /^\/merge(?:[ \t]+#?(\d+)(?:[ \t]+([a-f0-9]{40}))?)?$/u;
 const mergeMethod = "squash";
-// A symbolic link or a submodule under a content root is not content.
+// The topic merges no symbolic link, submodule or executable file.
 const regularFileMode = "100644";
 export const mergeConfirmationOutcome = "merge_context";
 const quietConfirmation = { outcome: mergeConfirmationOutcome };
@@ -103,7 +103,7 @@ const refusals = {
   checksNotGreen: "checks_not_green",
   behind: "behind",
   notClean: "not_clean",
-  nonContentChanges: "non_content_changes",
+  infrastructureChanges: "infrastructure_changes",
   unreadable: "unreadable",
 };
 
@@ -207,8 +207,8 @@ export function createMergeRequests({
     [refusals.checksNotGreen]: mergeReports.checksNotGreen,
     [refusals.behind]: mergeReports.behind,
     [refusals.notClean]: mergeReports.notClean,
-    [refusals.nonContentChanges]: ({ pullRequestNumber }) =>
-      mergeReports.nonContentChanges({
+    [refusals.infrastructureChanges]: ({ pullRequestNumber }) =>
+      mergeReports.infrastructureChanges({
         reviewUrl: pullRequestReviewUrl({ repository, pullRequestNumber }),
       }),
     [refusals.unreadable]: mergeReports.unreadable,
@@ -285,13 +285,13 @@ export function createMergeRequests({
     }
   }
 
-  /** Whether the pinned commit only changes regular content files. */
-  async function readOnlyContent(commit, signal) {
+  /** Whether the topic may merge what the pinned commit changes. */
+  async function readTopicMergeable(commit, signal) {
     const { paths, presentPaths } = await github.getChangedPaths({
       commit,
       signal: requestSignal(signal, requestTimeoutMilliseconds),
     });
-    if (!changesOnlyContent(paths)) return false;
+    if (!changesNoInfrastructure(paths)) return false;
     const modes = await github.getTreeModes({
       commit,
       signal: requestSignal(signal, requestTimeoutMilliseconds),
@@ -329,8 +329,8 @@ export function createMergeRequests({
     const synchronizable =
       refusal === refusals.behind && synchronizeBehind !== undefined;
     if (refusal !== null && !synchronizable) return { pullRequest, refusal };
-    if (!(await readOnlyContent(target.commit, signal))) {
-      return { pullRequest, refusal: refusals.nonContentChanges };
+    if (!(await readTopicMergeable(target.commit, signal))) {
+      return { pullRequest, refusal: refusals.infrastructureChanges };
     }
     return { pullRequest, refusal };
   }
@@ -876,7 +876,7 @@ export function createMergeRequests({
           ? synchronized
           : { ...synchronized, outcome: mergeConfirmationOutcome };
       }
-      if (live.refusal === refusals.nonContentChanges) {
+      if (live.refusal === refusals.infrastructureChanges) {
         // The person learns why no question follows their validation.
         return {
           ...refuse(

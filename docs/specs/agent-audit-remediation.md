@@ -43,10 +43,10 @@ perdre cap capacitat que els membres utilitzin.
 - Les necessitats noves descobertes durant una tasca són files noves, no
   ampliacions silencioses de l'abast.
 - Decisions de la persona mantenidora (24 de novembre de 2026):
-  - `/merge` només fusiona PR que canvien exclusivament contingut
-    (`apps/web/src/content/` i `apps/web/src/content-assets/`, les arrels de
-    contingut que ja fa servir la política de l'agent); qualsevol altra PR la
-    fusiona la persona mantenidora a GitHub. Requereix una esmena de l'ADR 0013.
+  - `/merge` fusiona les PR que canvien tot excepte infraestructura (revisió
+    del 25 de novembre de 2026, que amplia l'abast inicial de només contingut;
+    la llista és a l'ADR 0013); les PR que toquen infraestructura les fusiona
+    la persona mantenidora a GitHub. Requereix una esmena de l'ADR 0013.
     CODEOWNERS no serveix perquè el servei crea les PR amb el mateix compte que
     les hauria d'aprovar.
   - S'accepta l'esmena proposada de l'ADR 0013 per a la recerca web (T8.10).
@@ -95,7 +95,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | Tasca | Estat      | Dependències  | Resultat verificable                                                     | Entrega | PR                                                              |
 | ----- | ---------- | ------------- | ------------------------------------------------------------------------ | ------- | --------------------------------------------------------------- |
 | T1    | Completada | -             | El Git del servei no processa repositoris niats ni submòduls             | PR 1    | [#314](https://github.com/rboixaderg/mountain-runners/pull/314) |
-| T2    | Pendent    | T25           | `/merge` només fusiona PR que canvien exclusivament contingut            | PR 2    | -                                                               |
+| T2    | Completada | T25           | `/merge` fusiona les PR que canvien tot excepte infraestructura          | PR 2    | [#321](https://github.com/rboixaderg/mountain-runners/pull/321) |
 | T3    | Completada | -             | Les credencials no són a l'entorn del procés                             | PR 3    | [#317](https://github.com/rboixaderg/mountain-runners/pull/317) |
 | T4    | Pendent    | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
 | T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
@@ -153,22 +153,26 @@ protecció; `node --test` de les proves de repositori i de flux de treball;
 ### T2: Què Pot Fusionar `/merge`
 
 **Abast:** el servei refusa `/merge` (i la confirmació contextual del merge)
-quan la PR del commit fixat canvia qualsevol camí fora de les arrels de
-contingut (`apps/web/src/content/` i `apps/web/src/content-assets/`), amb un
-avís clar que diu que la persona mantenidora la revisarà. Fitxers:
-`workflow/merge-request.mjs`, `policy/development.mjs` i el README de l'agent.
+quan la PR del commit fixat canvia infraestructura, segons la revisió del 25 de
+novembre de 2026 de
+l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md) (abans,
+qualsevol camí fora del contingut), o conté un enllaç simbòlic, un submòdul o
+un fitxer executable entre els canvis, amb un avís clar que diu que la persona
+mantenidora la revisarà. Fitxers: `workflow/merge-request.mjs`,
+`policy/development.mjs` i el README de l'agent.
 
 **Exclusió immediata:** no canvia la protecció de la branca ni cap configuració
 remota, i no afegeix CODEOWNERS.
 
 **Dependències:** T25 (l'esmena de l'ADR 0013).
 
-**Resultat observable:** el `/merge` d'un membre no pot posar a `main` codi
-que s'executa amb privilegis (publicació de previews, eines de release o l'agent
-mateix); aquestes PR les fusiona la persona mantenidora.
+**Resultat observable:** el `/merge` d'un membre pot posar a `main` canvis de
+l'aplicació (components, estils, pàgines i contingut), però no de les eines ni
+de la configuració del projecte; aquestes PR les fusiona la persona
+mantenidora.
 
-**Comprovacions mínimes:** proves de refús amb camins fora del contingut, de
-camins mixtos i de PR només de contingut; `pnpm test:server`.
+**Comprovacions mínimes:** proves de refús de cada categoria d'infraestructura,
+de camins mixtos i de PR sense infraestructura; `pnpm test:server`.
 
 **PR:** una PR dedicada.
 

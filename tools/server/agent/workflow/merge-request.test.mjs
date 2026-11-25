@@ -361,17 +361,24 @@ test("merges the delivered preview commit and records it before the call", async
   assert.equal(traces[2].detail, `#200 ${commit} squash ${mergeCommit}`);
 });
 
-const nonContentReport = [
-  "Aquest canvi toca parts del web que ha de revisar la persona que manté el servei. No s'ha publicat res.",
+const infrastructureReport = [
+  "Aquest canvi toca les eines o la configuració del projecte, i ho ha de revisar la persona que manté el servei. No s'ha publicat res.",
   `Enllaç per a revisió: https://github.com/${repository}/pull/200`,
 ].join("\n");
 
-test("merges a pull request that only changes content, read at the pinned commit", async (context) => {
+test("merges a pull request without infrastructure changes, read at the pinned commit", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
     github: fakeGithub({
       changedPaths: [
+        "apps/web/src/components/Header.astro",
+        "apps/web/src/styles/global.css",
+        "apps/web/src/pages/index.astro",
         "apps/web/src/content/posts/la-cursa.yaml",
         "apps/web/src/content-assets/posts/la-cursa.webp",
+        "apps/web/messages/ca.json",
+        "apps/web/public/favicon.svg",
+        "apps/web/e2e/home.spec.ts",
+        "docs/architecture.md",
       ],
     }),
   });
@@ -384,30 +391,31 @@ test("merges a pull request that only changes content, read at the pinned commit
 });
 
 for (const [name, changedPaths] of [
-  ["only code", ["tools/server/agent/workflow/merge-request.mjs"]],
+  ["a file at the repository root", ["pnpm-lock.yaml"]],
+  ["a workflow", [".github/workflows/artifact.yml"]],
+  ["a project skill", [".agents/skills/seo/SKILL.md"]],
+  ["a Claude skill link", [".claude/skills/seo"]],
+  ["a Git hook", [".husky/pre-push"]],
+  ["an OpenCode agent", [".opencode/agent/development.md"]],
+  ["a project tool", ["tools/server/agent/workflow/merge-request.mjs"]],
+  ["a package", ["packages/telegram-pi-bridge/src/index.mjs"]],
+  ["the web manifest", ["apps/web/package.json"]],
+  ["the Astro configuration", ["apps/web/astro.config.mjs"]],
+  ["a file directly in the web application", ["apps/web/build-mode.mjs"]],
+  ["a web build script", ["apps/web/scripts/build.mjs"]],
+  ["the translation project", ["apps/web/project.inlang/settings.json"]],
+  ["a nested package manifest", ["apps/web/src/content/package.json"]],
+  ["a nested TypeScript configuration", ["docs/tsconfig.build.json"]],
+  ["a nested configuration file", ["apps/web/src/content.config.ts"]],
+  ["a hidden file", ["apps/web/src/content/.prettierrc.cjs"]],
+  ["a file in a hidden directory", ["apps/web/public/.well-known/a.txt"]],
   [
-    "content and code",
-    ["apps/web/src/content/posts/la-cursa.yaml", "apps/web/src/lib/a.ts"],
+    "allowed files and infrastructure",
+    ["apps/web/src/pages/index.astro", "tools/a.mjs"],
   ],
-  ["the content schema", ["apps/web/src/content.config.ts"]],
-  ["a sibling of a content root", ["apps/web/src/content-extra/a.yaml"]],
-  ["a sibling of the assets root", ["apps/web/src/content-assets-extra/a.png"]],
-  ["a content root with another case", ["apps/web/src/Content/a.yaml"]],
-  ["an extension with another case", ["apps/web/src/content/posts/a.YAML"]],
-  ["a bare content root", ["apps/web/src/content"]],
-  ["a Prettier configuration", ["apps/web/src/content/.prettierrc.cjs"]],
-  ["an ESLint configuration", ["apps/web/src/content/eslint.config.mjs"]],
-  ["a test file", ["apps/web/src/content/x.test.ts"]],
-  ["Git attributes", ["apps/web/src/content/.gitattributes"]],
-  ["a package manifest", ["apps/web/src/content/package.json"]],
-  ["a hidden data file", ["apps/web/src/content/.hidden.yaml"]],
-  ["a file in a hidden directory", ["apps/web/src/content/.config/a.yaml"]],
-  ["an asset among the data", ["apps/web/src/content/posts/a.png"]],
-  ["data among the assets", ["apps/web/src/content-assets/posts/a.yaml"]],
-  ["a scriptable image", ["apps/web/src/content-assets/posts/a.svg"]],
   [
-    "a file renamed out of content",
-    ["apps/web/src/lib/a.yaml", "apps/web/src/content/posts/a.yaml"],
+    "a file renamed into infrastructure",
+    ["tools/a.ts", "apps/web/src/lib/a.ts"],
   ],
   ["no file at all", []],
 ]) {
@@ -419,11 +427,11 @@ for (const [name, changedPaths] of [
 
     const result = await handler.handle(request(), bareCommand);
 
-    assert.equal(result.report, nonContentReport);
+    assert.equal(result.report, infrastructureReport);
     assert.deepEqual(github.merges, []);
     assert.equal(merges.state(20), undefined);
     assert.equal(traces.at(-1).action, "merge_refused");
-    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+    assert.equal(traces.at(-1).detail, "infrastructure_changes #200 aaaaaaa");
   });
 }
 
@@ -432,7 +440,7 @@ for (const [name, mode] of [
   ["a submodule", "160000"],
   ["an executable file", "100755"],
 ]) {
-  test(`refuses ${name} under a content root without merging`, async (context) => {
+  test(`refuses ${name} without merging`, async (context) => {
     const path = "apps/web/src/content/posts/la-cursa.yaml";
     const { deliverPreview, handler, github, traces } = setup(context, {
       github: fakeGithub({ treeModes: { [path]: mode } }),
@@ -442,11 +450,11 @@ for (const [name, mode] of [
     await handler.handle(request(), bareCommand);
 
     assert.deepEqual(github.merges, []);
-    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+    assert.equal(traces.at(-1).detail, "infrastructure_changes #200 aaaaaaa");
   });
 }
 
-test("merges a pull request that removes a content file", async (context) => {
+test("merges a pull request that removes a file", async (context) => {
   const path = "apps/web/src/content/posts/la-cursa.yaml";
   const { deliverPreview, handler, github } = setup(context, {
     github: fakeGithub({ removedPaths: [path] }),
@@ -471,13 +479,13 @@ test("refuses as unreadable when the commit tree cannot be read", async (context
 });
 
 for (const mergeableState of ["behind", "dirty"]) {
-  test(`refuses a ${mergeableState} branch that changes code without synchronising it`, async (context) => {
+  test(`refuses a ${mergeableState} branch that changes infrastructure without synchronising it`, async (context) => {
     const { deliverPreview, handler, synchronization, traces } = setup(
       context,
       {
         github: fakeGithub({
           pullRequest: openPullRequest({ mergeableState }),
-          changedPaths: ["apps/web/src/lib/a.ts"],
+          changedPaths: ["apps/web/package.json"],
         }),
         synchronize: true,
       },
@@ -487,7 +495,7 @@ for (const mergeableState of ["behind", "dirty"]) {
     await handler.handle(request(), bareCommand);
 
     assert.deepEqual(synchronization.calls, []);
-    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+    assert.equal(traces.at(-1).detail, "infrastructure_changes #200 aaaaaaa");
   });
 }
 

@@ -528,10 +528,10 @@ for (const [name, prepare] of [
   });
 }
 
-test("validating a pull request that changes code refuses instead of asking", async (context) => {
+test("validating a pull request that changes infrastructure refuses instead of asking", async (context) => {
   const scenario = setup(context);
   scenario.deliverPreview();
-  scenario.github.changedPaths = ["apps/web/src/lib/a.ts"];
+  scenario.github.changedPaths = ["apps/web/package.json"];
 
   const result = await validate(scenario);
 
@@ -542,7 +542,7 @@ test("validating a pull request that changes code refuses instead of asking", as
   assert.equal(scenario.traces.at(-1).action, "merge_refused");
   assert.equal(
     scenario.traces.at(-1).detail,
-    "non_content_changes #200 aaaaaaa",
+    "infrastructure_changes #200 aaaaaaa",
   );
 });
 
@@ -699,11 +699,11 @@ for (const [name, prepare, expected] of [
     /ja no correspon a la feina vigent/u,
   ],
   [
-    "the pull request changes code",
+    "the pull request changes infrastructure",
     (scenario) => {
-      scenario.github.changedPaths = ["apps/web/src/lib/a.ts"];
+      scenario.github.changedPaths = ["apps/web/package.json"];
     },
-    /parts del web que ha de revisar/u,
+    /les eines o la configuració del projecte/u,
   ],
   [
     "the changed files cannot be read",
