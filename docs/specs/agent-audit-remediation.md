@@ -109,7 +109,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
 | T14   | Pendent    | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
 | T15   | Completada | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | [#325](https://github.com/rboixaderg/mountain-runners/pull/325) |
-| T16   | Pendent    | -             | La confirmació del merge és determinista                                 | PR 16   | -                                                               |
+| T16   | Completada | -             | La confirmació del merge és determinista                                 | PR 16   | [#328](https://github.com/rboixaderg/mountain-runners/pull/328) |
 | T17   | Pendent    | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
 | T18   | Pendent    | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | -                                                               |
 | T19   | Pendent    | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
