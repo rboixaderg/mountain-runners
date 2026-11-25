@@ -512,6 +512,18 @@ export const mergeSynchronizationReports = {
     `Estic preparant la versió final de la proposta #${pullRequestNumber}. T'avisaré quan puguis revisar la preview nova.`,
 };
 
+// How an instruction or a merge synchronization ends.
+export const turnOutcomes = Object.freeze({
+  answered: "answered",
+  failed: "failed",
+  uncertain: "uncertain",
+  pullRequestCreated: "pull_request_created",
+  pullRequestUpdated: "pull_request_updated",
+  researchReviewRequired: "research_review_required",
+  upToDate: "up_to_date",
+  synchronized: "synchronized",
+});
+
 export const ciWatchOutcomes = {
   registered: "registered",
   unavailable: "unavailable",
