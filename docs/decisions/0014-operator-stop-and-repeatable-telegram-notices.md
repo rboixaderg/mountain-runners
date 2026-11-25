@@ -9,7 +9,7 @@ Telegram es pot repetir després d'un lliurament desconegut. La resta de requisi
 de T8.1 i la resta de la frontera de l'ADR 0013 no canvien. Aquest ADR no activa
 cap permís ni cap servei.
 
-Esmenada el 24 de novembre de 2026 amb la PR de la T25 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md): els avisos de CI s'afegeixen a l'excepció acceptada.
+Esmenada el 24 de novembre de 2026 amb la PR de la T25 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md): els avisos de CI s'afegeixen a l'excepció acceptada. El 25 de novembre de 2026, amb la T14 de la mateixa especificació, s'hi afegeixen l'avís de preview no confirmada i el de la preview retirada d'una sincronització abans del merge.
 
 ## Context
 
@@ -51,7 +51,9 @@ diferències entre el requisit i el que el pilot fa:
    confirmació de preview i l'avís de reconciliació del merge. És una excepció
    explícita i limitada al canal de Telegram: els efectes de GitHub no canvien i
    no es repeteixen mai, i el comentari `/preview` i el merge conserven les seves
-   comprovacions i el seu registre previ.
+   comprovacions i el seu registre previ. L'[esmena del 24 i 25 de novembre de
+   2026](#esmena-avisos-repetibles-24-i-25-de-novembre-de-2026) amplia els avisos
+   afectats.
 
 ## Conseqüències
 
@@ -69,12 +71,16 @@ La resta de controls de l'ADR 0013 es mantenen: identitat i pertinença
 verificades, aïllament, credencials separades, camí únic del merge, preview amb
 revalidació i reconciliació de resultats desconeguts per a les accions de GitHub.
 
-## Esmena (avisos de CI, 24 de novembre de 2026)
+## Esmena (avisos repetibles, 24 i 25 de novembre de 2026)
 
 Els avisos de CI s'afegeixen a l'excepció acceptada del punt 2: després d'un
 lliurament desconegut, un avís de CI es pot repetir. Per això un avís de CI ja no
 té cap estat incert que necessiti reconciliació de la persona operadora. La
-repetició no repeteix mai cap efecte de GitHub.
+repetició no repeteix mai cap efecte de GitHub. El 25 de novembre de 2026, amb la
+tasca T14 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md),
+l'avís de preview no confirmada i el de la preview retirada d'una sincronització
+abans del merge també s'afegeixen a aquesta excepció, i la seva repetició tampoc
+no repeteix mai cap efecte de GitHub.
 
 ## Quan revisar-ho
 

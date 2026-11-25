@@ -507,6 +507,81 @@ test("notifies CI only when the configured required checks are green", async (co
   assert.equal(service.ciWatches.state(10), "sent");
 });
 
+test("keeps a moved head unreported while the topic has unsettled work", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const sessionKey = "-1001234567890:7";
+  const publication = { sessionKey, pullRequestNumber: 200 };
+  const commitSha = "a".repeat(40);
+  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  ciWatches.add({ ...publication, updateIdentifier: 10, commitSha });
+  ciWatches.close();
+  const previews = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  previews.track({
+    ...publication,
+    updateIdentifier: 10,
+    authorIdentifier: 42,
+    commitSha,
+    mergeSynchronization: true,
+  });
+  previews.close();
+  const sent = [];
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async sendMessage(message) {
+        sent.push(message.text);
+      },
+    },
+    github: {
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async listIssueComments() {
+        return [];
+      },
+      async getPullRequest() {
+        return { state: "open", headSha: "b".repeat(40) };
+      },
+    },
+    runner: async () => ({}),
+  });
+  context.after(() => service.closeStateStores());
+  const runWorkers = async () => {
+    await service.ciWorker.runOnce();
+    await service.previewWorker.runOnce();
+  };
+  service.queue.admit({
+    updateIdentifier: 11,
+    messageIdentifier: 1011,
+    sessionKey,
+    authorIdentifier: 42,
+    instruction: "canvi nou",
+  });
+
+  await runWorkers();
+  service.queue.next();
+  service.queue.markUncertain(11, "uncertain");
+  await runWorkers();
+  assert.deepEqual(sent, []);
+
+  service.queue.resolveUncertain({
+    updateIdentifier: 11,
+    outcome: "reconciled",
+    trace: { action: "uncertain_reconciled" },
+  });
+  await runWorkers();
+  assert.equal(sent.length, 2);
+});
+
 test("refuses to start with an interrupted instruction of unknown result", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
@@ -987,7 +1062,8 @@ test("the current preview receives only the fixed question and only its author's
       mergeReply(104, 71, "Sí, a producció"),
     ],
   });
-  assert.equal(replies.length, 2);
+  assert.equal(replies.length, 3);
+  assert.match(replies[2], /ja s'havia atès/u);
   assert.equal(
     replies[0],
     "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",

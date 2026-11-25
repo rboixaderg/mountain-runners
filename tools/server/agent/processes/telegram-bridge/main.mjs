@@ -390,6 +390,8 @@ export async function startService({
       authorIdentifier,
       signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
     });
+  const hasWorkInProgress = ({ sessionKey, updateIdentifier }) =>
+    queue.hasUnsettledInstructions(sessionKey, updateIdentifier);
   const previewWorker = createPreviewRequests({
     store: previewRequests,
     findTopicPullRequest: createTopicPullRequestFinder(ciWatches),
@@ -401,6 +403,7 @@ export async function startService({
     confirmationTimeoutMilliseconds: previewConfirmationTimeoutMilliseconds,
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,
+    hasWorkInProgress,
     logger,
   });
   let runner;
@@ -545,6 +548,7 @@ export async function startService({
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,
+    hasWorkInProgress,
     logger,
   });
 

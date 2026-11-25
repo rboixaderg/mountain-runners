@@ -242,6 +242,9 @@ export function createCiWatchWorker({
   recordTrace = () => {},
   // The text of a notice is an effect the next turn of the topic must know.
   recordServiceNote = () => {},
+  // Whether the topic of a watch has another instruction queued, running or
+  // of unknown result, which may have published a newer commit.
+  hasWorkInProgress = () => false,
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -271,6 +274,17 @@ export function createCiWatchWorker({
     // A watch superseded during the reads produces no notice, so it must not
     // add a note or overwrite the last text of the topic either.
     if (store.state(watch.update_identifier) !== "pending") return;
+    // A publication pushes before it registers the watch that supersedes this
+    // one: a moved head is only reported once the topic has no work left.
+    if (
+      outcome.result === ciResults.headChanged &&
+      hasWorkInProgress({
+        sessionKey: watch.session_key,
+        updateIdentifier: watch.update_identifier,
+      })
+    ) {
+      return;
+    }
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       watch.session_key,
     );

@@ -260,57 +260,31 @@ test("one validation offers at most one question", (context) => {
   store.close();
 });
 
-test("offers at most one unanswered question per notice and person", (context) => {
+test("keeps one unanswered question per notice and person until it is retired", (context) => {
   const store = new MergeRequestStore(fixture(context));
-  assert.equal(
-    store.hasQuestion({
-      sessionKey: question.sessionKey,
-      noticeMessageIdentifier: question.noticeMessageIdentifier,
-      authorIdentifier: question.authorIdentifier,
-    }),
-    false,
-  );
   store.saveQuestion(question);
-  assert.equal(
-    store.hasQuestion({
-      sessionKey: question.sessionKey,
-      noticeMessageIdentifier: question.noticeMessageIdentifier,
-      authorIdentifier: question.authorIdentifier,
-    }),
-    true,
-  );
-  assert.equal(
-    store.hasQuestion({
-      sessionKey: question.sessionKey,
-      noticeMessageIdentifier: question.noticeMessageIdentifier,
-      authorIdentifier: question.authorIdentifier + 1,
-    }),
-    false,
-  );
-  assert.equal(
-    store.hasQuestion({
-      sessionKey: question.sessionKey,
-      noticeMessageIdentifier: question.noticeMessageIdentifier + 1,
-      authorIdentifier: question.authorIdentifier,
-    }),
-    false,
-  );
-  assert.equal(
-    store.hasQuestion({
-      sessionKey: "-100999:4",
-      noticeMessageIdentifier: question.noticeMessageIdentifier,
-      authorIdentifier: question.authorIdentifier,
-    }),
-    false,
-  );
   const next = {
     ...question,
     questionMessageIdentifier: 901,
     validationUpdateIdentifier: 21,
   };
   assert.equal(store.saveQuestion(next), false);
-  assert.equal(store.consumeQuestion(question), true);
+
+  for (const other of [
+    { authorIdentifier: question.authorIdentifier + 1 },
+    { noticeMessageIdentifier: question.noticeMessageIdentifier + 1 },
+    { sessionKey: "-100999:4" },
+  ]) {
+    store.retireQuestion({ ...question, ...other });
+  }
+  assert.notEqual(store.question(question), undefined);
+  store.retireQuestion(question);
+  assert.equal(store.question(question), undefined);
   assert.equal(store.saveQuestion(next), true);
+
+  assert.equal(store.consumeQuestion(next), true);
+  store.retireQuestion(next);
+  assert.notEqual(store.question(next), undefined);
   store.close();
 });
 

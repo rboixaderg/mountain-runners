@@ -3435,8 +3435,9 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
       replyMessageIdentifier: 901,
     }),
   );
-  assert.equal(outOfContextConfirm.report, "Entesos.");
-  assert.deepEqual(classified, ["La feina està validada", "si, produccio"]);
+  assert.equal(outOfContextConfirm.outcome, "merge_context");
+  assert.match(outOfContextConfirm.report, /confirmació no és vàlida/u);
+  assert.deepEqual(classified, ["La feina està validada"]);
 });
 
 test("never treats prose as a merge", async (context) => {

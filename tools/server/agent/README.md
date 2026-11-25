@@ -197,6 +197,10 @@ al servidor. El nom local encara no representa una publicació a npm.
    fins que l'enviament va bé; si falla o s'esgota, el cicle següent el torna a
    enviar, així que després d'un lliurament desconegut l'avís es pot repetir
    ([ADR 0014](../../../docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+   Una publicació nova de la mateixa PR substitueix el seguiment anterior, que ja
+   no envia res. Com que el push és anterior al seguiment nou, l'avís de cap
+   canviat espera mentre el tema tingui una altra instrucció pendent, en curs o
+   incerta.
    Mentre el tema tingui un seguiment pendent, el tema té feina sense informar:
    `/merge` no resol res. Si el seguiment no es pot desar després d'una
    publicació confirmada, la instrucció acaba com a incerta: la publicació s'ha
@@ -285,7 +289,9 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   sandbox; l'eina `sandbox_bash` trunca a 32 KiB (cap i cua en UTF-8 vàlid) el
   text retornat al model amb un avís explícit. El torn RPC de Pi limita el flux
   total a 16 MiB amb topalls de memòria de 2 MiB per línia de stdout, 1 MiB per
-  a stderr i 1 MiB per al text de l'assistent. Superar el límit de procés o
+  a stderr i 1 MiB per al text de l'assistent; els registres de Pi que repeteixen
+  les imatges no hi compten
+  ([pont](../../../packages/telegram-pi-bridge/README.md)). Superar el límit de procés o
   d'RPC atura el procés i espera la neteja dels contenidors. Si afecta el torn
   RPC o les comprovacions, la instrucció falla abans de publicar. El timeout es
   manté independent. L'adaptador també
@@ -432,7 +438,13 @@ traça privada. El publicador i la construcció de la preview són a
   i després la PR. Si la PR ja no és oberta, té un cap més nou, ha perdut
   l'etiqueta `preview` o té `preview-revoked`, la petició acaba com a `failed`
   sense cap avís (traça `preview_withdrawn` amb el motiu): només s'informa
-  l'adreça del cap final i mai una preview retirada.
+  l'adreça del cap final i mai una preview retirada. L'única excepció és el
+  seguiment d'una sincronització abans del merge, que avisa que no s'ha fusionat
+  res. Si el commit nou és del servei, aquest seguiment no avisa, tampoc quan el
+  resultat de la publicació és desconegut i encara no s'ha reconciliat: el
+  seguiment nou o la reconciliació com a publicada el tanca com a `failed`, i un
+  cap més nou no s'avalua mentre el tema tingui una altra instrucció pendent, en
+  curs o incerta.
 - **Sense resultat de l'execució.** El servei ja no llegeix les execucions de
   `preview.yml`. Amb l'etiqueta, el run és de `pull_request_target`: el seu
   `head_sha` és l'últim commit de `main`, no el cap de la PR, i no hi ha cap camp
@@ -471,6 +483,8 @@ traça privada. El publicador i la construcció de la preview són a
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
   Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
   d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](../../../docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+  L'avís de fallada i el de la sincronització retirada segueixen el mateix ordre
+  i la mateixa excepció.
   Una lectura fallida de comentaris no tanca la petició i el termini només
   s'aplica després d'una lectura correcta de comentaris.
 - **Cursa acceptada.** Si arriba un commit nou abans de la confirmació, el flux
@@ -523,8 +537,9 @@ la PR sense fusió.
   acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.» Desa
   l'identificador del missatge a `state/merge-request.sqlite` només després de
   confirmar l'enviament, lligat a l'avís, la publicació, la PR, el SHA i la
-  persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Una
-  validació ofereix com a màxim una pregunta per avís i persona. Un avís
+  persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Hi ha com
+  a màxim una pregunta sense resposta per avís i persona: una nova validació
+  sobre l'avís vigent retira l'anterior i en demana una altra. Un avís
   substituït per un de més nou deixa la pregunta inert. La pregunta només
   s'ofereix si la preview compleix la fixació i el tema no té feina més nova ni
   un merge obert per a aquella PR.
@@ -535,8 +550,8 @@ la PR sense fusió.
   preposició opcional «a» i signes finals `.` o `!` (accepta, per exemple,
   «si, produccio» o «sí, Produccio», però rebutja «Sí», «Sí, a producció?» o
   text afegit); no s'interpreta prosa. Una confirmació solta, d'una altra
-  persona, reenviada o citada no autoritza res, i fora d'una pregunta desada
-  segueix la conversa habitual. El pont només rep missatges nous: no tracta una
+  persona, reenviada o citada no autoritza res. Una confirmació que no respon
+  directament a cap missatge del bot segueix la conversa habitual. El pont només rep missatges nous: no tracta una
   edició com una confirmació, ni revoca amb una edició una confirmació que ja
   hagi admès a la cua. Telegram no distingeix el text teclejat del text enganxat
   en una resposta directa vàlida.
@@ -547,6 +562,18 @@ la PR sense fusió.
   la pregunta, i la confirmació no es recondueix mai a un altre SHA. Si la
   pregunta ja no correspon a la feina vigent, la resposta ho diu i no fusiona
   res.
+- **Resposta sense torn de model.** Una resposta directa amb la confirmació a un
+  missatge del bot no arriba mai al model. Una confirmació repetida a una
+  pregunta ja usada respon, sense límit de temps, que la petició ja s'havia
+  atès. El servei respon que la confirmació no és vàlida, i demana tornar a
+  validar la feina a l'últim avís de la preview, si no hi ha cap pregunta desada
+  (també quan s'ha enviat i no s'ha pogut desar, o quan una nova validació l'ha
+  retirada) o si la pregunta ha caducat sense usar-se. Cap d'aquestes respostes
+  fusiona. La resposta d'una altra persona a una pregunta desada no rep cap
+  missatge.
+- **Caducitat.** Una pregunta sense usar val 24 hores des que el servei la desa
+  (`mergeQuestionLifetimeMilliseconds`). Una data il·legible compta com a
+  caducada.
 - **Fixació.** Només l'avís lliurat de la preview confirmada de l'última
   publicació del tema fixa la PR, el SHA i la pregunta. El servei desa
   l'identificador de l'avís i el de la pregunta després de confirmar
@@ -753,8 +780,8 @@ servei hi manté, però, estat propi perquè cap missatge acceptat ni cap efecte
 seu no quedi fora de la sessió.
 
 - **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`,
-  una validació sobre l'avís vigent, una confirmació «Sí, a producció» sobre una
-  pregunta desada ni una preview executa un torn de Pi amb escriptura a la
+  una validació sobre l'avís vigent, una confirmació «Sí, a producció» com a
+  resposta directa a un missatge del bot ni una preview executa un torn de Pi amb escriptura a la
   sessió del tema. El text fix d'aclariment només es fa servir si el model no
   respon. Una resposta sense canvis no crea cap PR, llevat que hi hagi feina
   pendent de publicar.

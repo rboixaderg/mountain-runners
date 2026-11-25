@@ -367,6 +367,23 @@ export class AdmissionQueue {
   }
 
   /**
+   * Whether the session has another instruction whose external effects are not
+   * settled yet: pending, running or with an unknown result.
+   */
+  hasUnsettledInstructions(sessionKey, updateIdentifier) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 FROM instructions
+           WHERE session_key = ? AND update_identifier <> ?
+             AND status IN ('pending', 'running', 'uncertain')
+           LIMIT 1`,
+        )
+        .get(sessionKey, updateIdentifier) !== undefined
+    );
+  }
+
+  /**
    * Whether the same topic admitted another instruction between two of its
    * persisted updates. Both endpoints must exist in that topic and be in
    * sequence order; anything else fails closed. Rows whose outcome is

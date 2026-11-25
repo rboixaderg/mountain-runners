@@ -43,6 +43,14 @@ const mergeMethod = "squash";
 const regularFileMode = "100644";
 export const mergeConfirmationOutcome = "merge_context";
 const quietConfirmation = { outcome: mergeConfirmationOutcome };
+// A question older than this authorizes nothing.
+export const mergeQuestionLifetimeMilliseconds = 24 * 60 * 60 * 1000;
+
+function isExpiredQuestion(question) {
+  const age = Date.now() - Date.parse(question.created_at);
+  // An unreadable date has no age, so it counts as expired.
+  return !(age < mergeQuestionLifetimeMilliseconds);
+}
 
 const confirmationPattern = /^si(?:\s*,\s*|\s+)(?:a\s+)?produccio$/u;
 
@@ -89,6 +97,7 @@ const refusals = {
   commitMismatch: "commit_mismatch",
   newerWork: "newer_work",
   alreadyHandled: "already_handled",
+  invalidQuestion: "invalid_question",
   alreadyInProgress: "already_in_progress",
   uncertainPending: "uncertain_pending",
   uncertainClosed: "uncertain_closed",
@@ -849,7 +858,9 @@ export function createMergeRequests({
       noticeMessageIdentifier: delivered.notice_message_identifier,
       authorIdentifier: request.authorIdentifier,
     };
-    if (store.hasQuestion(key)) return quietConfirmation;
+    // Each validation asks again: the unanswered question it replaces, expired
+    // or not, stops being valid.
+    store.retireQuestion(key);
 
     const stillCurrent = () => {
       const current = findDeliveredPreview(request.sessionKey);
@@ -944,17 +955,28 @@ export function createMergeRequests({
       authorIdentifier: request.authorIdentifier,
     };
     const question = store.question(key);
-    if (
-      !question ||
-      question.consumed_at !== null ||
-      question.author_identifier !== request.authorIdentifier
-    ) {
+    // A confirmation that can no longer merge is still answered here, so it
+    // never reaches a model turn.
+    const answerWithoutMerge = (reason, text) => ({
+      ...refuse(request, reason, text),
+      outcome: mergeConfirmationOutcome,
+    });
+    if (question && question.author_identifier !== request.authorIdentifier) {
       return quietConfirmation;
+    }
+    const answerAlreadyHandled = () =>
+      answerWithoutMerge(refusals.alreadyHandled, mergeReports.alreadyHandled);
+    if (question?.consumed_at) return answerAlreadyHandled();
+    if (!question || isExpiredQuestion(question)) {
+      return answerWithoutMerge(
+        refusals.invalidQuestion,
+        mergeReports.invalidQuestion,
+      );
     }
     const denied = await membershipRefusal(request, signal);
     if (denied !== null)
       return { ...denied, outcome: mergeConfirmationOutcome };
-    if (!store.consumeQuestion(key)) return quietConfirmation;
+    if (!store.consumeQuestion(key)) return answerAlreadyHandled();
 
     const target = rowTarget(question);
     const delivered = findDeliveredPreview(request.sessionKey);
@@ -1019,15 +1041,9 @@ export function createMergeRequests({
         ? intent
         : null;
     }
-    if (intent === "confirm") {
-      return store.question({
-        sessionKey: request.sessionKey,
-        questionMessageIdentifier: request.replyMessageIdentifier,
-      })
-        ? intent
-        : null;
-    }
-    return null;
+    // Any direct reply to the bot with the confirmation is handled here, with
+    // or without a stored question.
+    return intent;
   }
 
   /**

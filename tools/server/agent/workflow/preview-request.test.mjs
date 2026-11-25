@@ -904,6 +904,31 @@ test("a failed timeout report is retried the same way", async (context) => {
   assert.equal(previews.state(20), "timed_out");
 });
 
+test("a synchronization the service is replacing is not reported as withdrawn", async (context) => {
+  const { buildHandler, github, previews, sent } = setup(context);
+  let working = true;
+  const handler = buildHandler({ hasWorkInProgress: () => working });
+  handler.followPublication(publication(10, { mergeSynchronization: true }));
+  github.pullRequests[200].headSha = newerCommit;
+
+  // The newer commit is pushed but its publication is not followed yet.
+  await handler.runOnce();
+  assert.equal(previews.state(10), "awaiting");
+
+  // It is followed while the older row is being read.
+  const listComments = github.listIssueComments;
+  github.listIssueComments = async (options) => {
+    handler.followPublication(publication(11, { commit: newerCommit }));
+    working = false;
+    github.listIssueComments = listComments;
+    return listComments(options);
+  };
+  await handler.runOnce();
+
+  assert.equal(previews.state(10), "failed");
+  assert.deepEqual(sent, []);
+});
+
 test("an aborted cycle reports and finishes nothing", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   await handler.handle(request());

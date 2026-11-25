@@ -98,7 +98,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T2    | Completada | T25           | `/merge` fusiona les PR que canvien tot excepte infraestructura          | PR 2    | [#321](https://github.com/rboixaderg/mountain-runners/pull/321) |
 | T3    | Completada | -             | Les credencials no són a l'entorn del procés                             | PR 3    | [#317](https://github.com/rboixaderg/mountain-runners/pull/317) |
 | T4    | Completada | -             | La versió de Pi queda registrada i és fàcil d'actualitzar                | PR 4    | [#324](https://github.com/rboixaderg/mountain-runners/pull/324) |
-| T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
+| T5    | Completada | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | [#327](https://github.com/rboixaderg/mountain-runners/pull/327) |
 | T6    | Completada | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | [#323](https://github.com/rboixaderg/mountain-runners/pull/323) |
 | T7    | Completada | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | [#320](https://github.com/rboixaderg/mountain-runners/pull/320) |
 | T8    | Completada | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | [#330](https://github.com/rboixaderg/mountain-runners/pull/330) |
@@ -107,9 +107,9 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T11   | Completada | -             | Cap estat bloqueja sense sortida                                         | PR 11   | [#318](https://github.com/rboixaderg/mountain-runners/pull/318) |
 | T12   | Pendent    | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
 | T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
-| T14   | Pendent    | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
+| T14   | Completada | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | [#329](https://github.com/rboixaderg/mountain-runners/pull/329) |
 | T15   | Completada | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | [#325](https://github.com/rboixaderg/mountain-runners/pull/325) |
-| T16   | Pendent    | -             | La confirmació del merge és determinista                                 | PR 16   | -                                                               |
+| T16   | Completada | -             | La confirmació del merge és determinista                                 | PR 16   | [#328](https://github.com/rboixaderg/mountain-runners/pull/328) |
 | T17   | Pendent    | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
 | T18   | Pendent    | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | -                                                               |
 | T19   | Pendent    | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
