@@ -523,8 +523,9 @@ la PR sense fusió.
   acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.» Desa
   l'identificador del missatge a `state/merge-request.sqlite` només després de
   confirmar l'enviament, lligat a l'avís, la publicació, la PR, el SHA i la
-  persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Una
-  validació ofereix com a màxim una pregunta per avís i persona. Un avís
+  persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Hi ha com
+  a màxim una pregunta sense resposta per avís i persona: una nova validació
+  sobre l'avís vigent retira l'anterior i en demana una altra. Un avís
   substituït per un de més nou deixa la pregunta inert. La pregunta només
   s'ofereix si la preview compleix la fixació i el tema no té feina més nova ni
   un merge obert per a aquella PR.
@@ -535,8 +536,8 @@ la PR sense fusió.
   preposició opcional «a» i signes finals `.` o `!` (accepta, per exemple,
   «si, produccio» o «sí, Produccio», però rebutja «Sí», «Sí, a producció?» o
   text afegit); no s'interpreta prosa. Una confirmació solta, d'una altra
-  persona, reenviada o citada no autoritza res, i fora d'una pregunta desada
-  segueix la conversa habitual. El pont només rep missatges nous: no tracta una
+  persona, reenviada o citada no autoritza res. Una confirmació que no respon
+  directament a cap missatge del bot segueix la conversa habitual. El pont només rep missatges nous: no tracta una
   edició com una confirmació, ni revoca amb una edició una confirmació que ja
   hagi admès a la cua. Telegram no distingeix el text teclejat del text enganxat
   en una resposta directa vàlida.
@@ -547,6 +548,18 @@ la PR sense fusió.
   la pregunta, i la confirmació no es recondueix mai a un altre SHA. Si la
   pregunta ja no correspon a la feina vigent, la resposta ho diu i no fusiona
   res.
+- **Resposta sense torn de model.** Una resposta directa amb la confirmació a un
+  missatge del bot no arriba mai al model. Una confirmació repetida a una
+  pregunta ja usada respon, sense límit de temps, que la petició ja s'havia
+  atès. El servei respon que la confirmació no és vàlida, i demana tornar a
+  validar la feina a l'últim avís de la preview, si no hi ha cap pregunta desada
+  (també quan s'ha enviat i no s'ha pogut desar, o quan una nova validació l'ha
+  retirada) o si la pregunta ha caducat sense usar-se. Cap d'aquestes respostes
+  fusiona. La resposta d'una altra persona a una pregunta desada no rep cap
+  missatge.
+- **Caducitat.** Una pregunta sense usar val 24 hores des que el servei la desa
+  (`mergeQuestionLifetimeMilliseconds`). Una data il·legible compta com a
+  caducada.
 - **Fixació.** Només l'avís lliurat de la preview confirmada de l'última
   publicació del tema fixa la PR, el SHA i la pregunta. El servei desa
   l'identificador de l'avís i el de la pregunta després de confirmar
@@ -753,8 +766,8 @@ servei hi manté, però, estat propi perquè cap missatge acceptat ni cap efecte
 seu no quedi fora de la sessió.
 
 - **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`,
-  una validació sobre l'avís vigent, una confirmació «Sí, a producció» sobre una
-  pregunta desada ni una preview executa un torn de Pi amb escriptura a la
+  una validació sobre l'avís vigent, una confirmació «Sí, a producció» com a
+  resposta directa a un missatge del bot ni una preview executa un torn de Pi amb escriptura a la
   sessió del tema. El text fix d'aclariment només es fa servir si el model no
   respon. Una resposta sense canvis no crea cap PR, llevat que hi hagi feina
   pendent de publicar.

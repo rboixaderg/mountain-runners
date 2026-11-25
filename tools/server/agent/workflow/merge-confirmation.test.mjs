@@ -4,9 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { openDatabase } from "../repository/sqlite.mjs";
 import {
   createMergeRequests,
   mergeConfirmationIntent,
+  mergeQuestionLifetimeMilliseconds,
 } from "./merge-request.mjs";
 
 const repository = "rboixaderg/mountain-runners";
@@ -208,6 +210,7 @@ function setup(context, { github = fakeGithub() } = {}) {
   }
 
   const scenario = {
+    storePath,
     github,
     previews,
     attempts,
@@ -277,6 +280,26 @@ function confirm(scenario, options = {}) {
   );
 }
 
+function assertQuiet(result) {
+  assert.deepEqual(result, { outcome: "merge_context" });
+}
+
+function assertInvalidQuestion(result) {
+  assert.deepEqual(result, {
+    outcome: "merge_context",
+    report:
+      "Aquesta confirmació no és vàlida. No s'ha fusionat res. Torna a respondre «La feina està validada» a l'últim avís de la preview.",
+  });
+}
+
+function assertAlreadyHandled(result) {
+  assert.deepEqual(result, {
+    outcome: "merge_context",
+    report:
+      "Aquesta petició de merge ja s'havia atès. No s'ha fusionat res de nou.",
+  });
+}
+
 function storedQuestion(scenario, identifier = questionMessageIdentifier) {
   return scenario.store.question({
     sessionKey,
@@ -330,7 +353,7 @@ test("recognises only the closed validation literal and the normalized confirmat
   }
 });
 
-test("contextualIntent matches only the current preview notice or a stored question", async (context) => {
+test("contextualIntent matches the current preview notice or any confirmation reply", async (context) => {
   const scenario = setup(context);
   assert.equal(
     scenario.handler.contextualIntent(validationRequest()),
@@ -360,8 +383,14 @@ test("contextualIntent matches only the current preview notice or a stored quest
   );
   assert.equal(
     scenario.handler.contextualIntent(confirmationRequest()),
+    "confirm",
+    "a confirmation reply without a stored question never reaches the model",
+  );
+  assert.equal(
+    scenario.handler.contextualIntent(
+      confirmationRequest({ replyMessageIdentifier: null }),
+    ),
     null,
-    "confirmation without a stored question follows ordinary conversation",
   );
 
   await validate(scenario);
@@ -370,12 +399,6 @@ test("contextualIntent matches only the current preview notice or a stored quest
       confirmationRequest({ instruction: "si, produccio" }),
     ),
     "confirm",
-  );
-  assert.equal(
-    scenario.handler.contextualIntent(
-      confirmationRequest({ replyMessageIdentifier: noticeMessageIdentifier }),
-    ),
-    null,
   );
 
   scenario.deliverPreview(
@@ -590,7 +613,7 @@ for (const [name, configureSend] of [
 
     const result = await confirm(scenario);
 
-    assert.deepEqual(result, { outcome: "merge_context" });
+    assertInvalidQuestion(result);
     assert.deepEqual(scenario.github.merges, []);
   });
 }
@@ -608,6 +631,11 @@ test("a notice replaced while the question is sent is not stored", async (contex
 
   assert.equal(scenario.attempts.length, 1);
   assert.equal(storedQuestion(scenario), undefined);
+  assert.equal(
+    scenario.handler.contextualIntent(confirmationRequest()),
+    "confirm",
+  );
+  assertInvalidQuestion(await confirm(scenario));
   assert.deepEqual(scenario.github.merges, []);
 });
 
@@ -628,21 +656,26 @@ test("the matching reply from the same member merges the pinned preview once", a
 
   const repeated = await confirm(scenario, { updateIdentifier: 22 });
 
-  assert.deepEqual(repeated, { outcome: "merge_context" });
+  assertAlreadyHandled(repeated);
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
   assert.equal(scenario.store.state(22), undefined);
 });
 
-for (const [name, options] of [
-  ["an unknown question identifier", { replyMessageIdentifier: 901 }],
+for (const [name, options, assertResult] of [
+  [
+    "an unknown question identifier",
+    { replyMessageIdentifier: 901 },
+    assertInvalidQuestion,
+  ],
   [
     "a reply to the notice instead of the question",
     { replyMessageIdentifier: noticeMessageIdentifier },
+    assertInvalidQuestion,
   ],
-  ["a standalone reply", { replyMessageIdentifier: null }],
-  ["another member", { authorIdentifier: 556 }],
+  ["a standalone reply", { replyMessageIdentifier: null }, assertQuiet],
+  ["another member", { authorIdentifier: 556 }, assertQuiet],
 ]) {
   test(`does not merge from ${name}`, async (context) => {
     const scenario = setup(context);
@@ -651,11 +684,80 @@ for (const [name, options] of [
 
     const result = await confirm(scenario, options);
 
-    assert.deepEqual(result, { outcome: "merge_context" });
+    assertResult(result);
     assert.deepEqual(scenario.github.merges, []);
     assert.equal(storedQuestion(scenario).consumed_at, null);
   });
 }
+
+for (const [name, age, expectedMerges] of [
+  ["just before it expires", mergeQuestionLifetimeMilliseconds - 1, 1],
+  ["once it expires", mergeQuestionLifetimeMilliseconds, 0],
+]) {
+  test(`a confirmation ${name}`, async (context) => {
+    context.mock.timers.enable({ apis: ["Date"], now: 0 });
+    const scenario = setup(context);
+    scenario.deliverPreview();
+    await validate(scenario);
+    context.mock.timers.setTime(age);
+
+    const result = await confirm(scenario);
+
+    assert.equal(scenario.github.merges.length, expectedMerges);
+    if (expectedMerges === 0) assertInvalidQuestion(result);
+  });
+}
+
+for (const [name, age] of [
+  ["while the question is valid", mergeQuestionLifetimeMilliseconds - 1],
+  ["after expiry", mergeQuestionLifetimeMilliseconds],
+]) {
+  test(`validating again ${name} asks a new question and retires the old one`, async (context) => {
+    context.mock.timers.enable({ apis: ["Date"], now: 0 });
+    const scenario = setup(context);
+    scenario.deliverPreview();
+    await validate(scenario);
+    context.mock.timers.setTime(age);
+    scenario.telegram.messageIdentifier = 901;
+
+    await validate(scenario, { updateIdentifier: 22 });
+
+    assert.equal(scenario.attempts.length, 2);
+    assertInvalidQuestion(await confirm(scenario, { updateIdentifier: 23 }));
+    assert.deepEqual(scenario.github.merges, []);
+    await confirm(scenario, {
+      updateIdentifier: 24,
+      replyMessageIdentifier: 901,
+    });
+    assert.deepEqual(scenario.github.merges, [
+      { number: pullRequestNumber, sha: commit },
+    ]);
+  });
+}
+
+test("a used confirmation repeated after the lifetime was already handled", async (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: 0 });
+  const scenario = setup(context);
+  scenario.deliverPreview();
+  await validate(scenario);
+  await confirm(scenario);
+  context.mock.timers.setTime(mergeQuestionLifetimeMilliseconds);
+
+  assertAlreadyHandled(await confirm(scenario, { updateIdentifier: 22 }));
+  assert.equal(scenario.github.merges.length, 1);
+});
+
+test("a question with an unreadable date never merges", async (context) => {
+  const scenario = setup(context);
+  scenario.deliverPreview();
+  await validate(scenario);
+  const database = openDatabase(scenario.storePath);
+  database.exec("UPDATE merge_questions SET created_at = 'unreadable'");
+  database.close();
+
+  assertInvalidQuestion(await confirm(scenario));
+  assert.deepEqual(scenario.github.merges, []);
+});
 
 test("another member's reply leaves the question for the member it was fixed to", async (context) => {
   const scenario = setup(context);
@@ -864,9 +966,6 @@ test("a restart keeps the question usable and never consumes it twice", async (c
   assert.equal(storedQuestion(scenario).consumed_at, null);
 
   scenario.reopen();
-  await validate(scenario, { updateIdentifier: 19 });
-  assert.equal(scenario.attempts.length, 1);
-  assert.equal(storedQuestion(scenario).consumed_at, null);
 
   const result = await confirm(scenario);
   assert.match(result.report, /ja està fusionada/u);
@@ -877,7 +976,7 @@ test("a restart keeps the question usable and never consumes it twice", async (c
   scenario.reopen();
   const repeated = await confirm(scenario, { updateIdentifier: 22 });
 
-  assert.deepEqual(repeated, { outcome: "merge_context" });
+  assertAlreadyHandled(repeated);
   assert.deepEqual(scenario.github.merges, [
     { number: pullRequestNumber, sha: commit },
   ]);
