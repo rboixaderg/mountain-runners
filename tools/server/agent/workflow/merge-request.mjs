@@ -33,6 +33,7 @@ import {
   mergeSynchronizationRequestedAction,
   pullRequestReviewUrl,
   shortCommit,
+  turnOutcomes,
 } from "../policy/development.mjs";
 
 const mergeCommandPrefix = "/merge";
@@ -153,6 +154,19 @@ function rowTarget(row) {
   };
 }
 
+/**
+ * Whether the delivered preview is still exactly the one a question pins: the
+ * same publication and notice, pull request and commit.
+ */
+function isPinnedDelivery(delivered, pin) {
+  return (
+    delivered?.update_identifier === pin.publicationUpdateIdentifier &&
+    delivered.notice_message_identifier === pin.noticeMessageIdentifier &&
+    delivered.pull_request_number === pin.pullRequestNumber &&
+    delivered.commit_sha === pin.commit
+  );
+}
+
 export function createMergeRequests({
   store,
   findDeliveredPreview,
@@ -201,7 +215,7 @@ export function createMergeRequests({
       "merge_refused",
       target ? `${reason} ${describeTarget(target)}` : reason,
     );
-    return { outcome: "answered", report: text };
+    return { outcome: turnOutcomes.answered, report: text };
   }
 
   const refusalTexts = {
@@ -430,7 +444,7 @@ export function createMergeRequests({
       tryRecord(() => closeAsReconciled(row, pullRequest.mergeCommitSha));
       return {
         answer: {
-          outcome: "answered",
+          outcome: turnOutcomes.answered,
           report: mergeReports.reconciled({
             pullRequestNumber: row.pull_request_number,
             mergeCommit: pullRequest.mergeCommitSha,
@@ -569,18 +583,24 @@ export function createMergeRequests({
       // the pull request, so the answer is the unknown-result one.
       if (tryRecord(() => store.markFailed(request.updateIdentifier))) {
         return {
-          outcome: "answered",
+          outcome: turnOutcomes.answered,
           report: mergeReports.failed(target),
         };
       }
-      return { outcome: "answered", report: mergeReports.uncertain(target) };
+      return {
+        outcome: turnOutcomes.answered,
+        report: mergeReports.uncertain(target),
+      };
     }
     // The merge may or may not have happened: it is never requested again
     // blindly, and the next request reads the pull request first.
     logger("merge_uncertain", error instanceof Error ? error.name : "unknown");
     traceRequest(request, "merge_uncertain", describeTarget(target));
     tryRecord(() => store.markUncertain(request.updateIdentifier));
-    return { outcome: "answered", report: mergeReports.uncertain(target) };
+    return {
+      outcome: turnOutcomes.answered,
+      report: mergeReports.uncertain(target),
+    };
   }
 
   async function requestMerge(request, target, signal, pullRequestUrl) {
@@ -611,7 +631,7 @@ export function createMergeRequests({
       store.markMerged(request.updateIdentifier, merged.mergeCommitSha),
     );
     return {
-      outcome: "answered",
+      outcome: turnOutcomes.answered,
       report: saved
         ? mergeReports.merged(report)
         : mergeReports.mergedUnsaved(report),
@@ -667,7 +687,7 @@ export function createMergeRequests({
       if (settled?.answer) return settled.answer;
       if (settled?.cleared) {
         return {
-          outcome: "answered",
+          outcome: turnOutcomes.answered,
           report: mergeReports.uncertainCleared(settled.cleared),
         };
       }
@@ -860,17 +880,15 @@ export function createMergeRequests({
     // or not, stops being valid.
     store.retireQuestion(key);
 
-    const stillCurrent = () => {
-      const current = findDeliveredPreview(request.sessionKey);
-      return (
-        current?.update_identifier === delivered.update_identifier &&
-        current.notice_message_identifier === key.noticeMessageIdentifier &&
-        current.pull_request_number === target.pullRequestNumber &&
-        current.commit_sha === target.commit &&
-        !hasNewerWork(request) &&
-        !store.hasOpenRequest(target.pullRequestNumber)
-      );
+    const pin = {
+      ...target,
+      publicationUpdateIdentifier: delivered.update_identifier,
+      noticeMessageIdentifier: delivered.notice_message_identifier,
     };
+    const stillCurrent = () =>
+      isPinnedDelivery(findDeliveredPreview(request.sessionKey), pin) &&
+      !hasNewerWork(request) &&
+      !store.hasOpenRequest(target.pullRequestNumber);
     try {
       const live = await readMergeState(target, signal);
       if (!stillCurrent()) return quietConfirmation;
@@ -881,7 +899,7 @@ export function createMergeRequests({
           live.pullRequest,
           signal,
         );
-        return synchronized.outcome === "uncertain"
+        return synchronized.outcome === turnOutcomes.uncertain
           ? synchronized
           : { ...synchronized, outcome: mergeConfirmationOutcome };
       }
@@ -978,12 +996,13 @@ export function createMergeRequests({
 
     const target = rowTarget(question);
     const delivered = findDeliveredPreview(request.sessionKey);
+    const pin = {
+      ...target,
+      publicationUpdateIdentifier: question.publication_update_identifier,
+      noticeMessageIdentifier: question.notice_message_identifier,
+    };
     if (
-      delivered?.update_identifier !== question.publication_update_identifier ||
-      delivered.notice_message_identifier !==
-        question.notice_message_identifier ||
-      delivered.pull_request_number !== target.pullRequestNumber ||
-      delivered.commit_sha !== target.commit ||
+      !isPinnedDelivery(delivered, pin) ||
       hasInterveningInstructions({
         sessionKey: request.sessionKey,
         afterUpdateIdentifier: question.validation_update_identifier,
@@ -1024,7 +1043,7 @@ export function createMergeRequests({
       `#${target.pullRequestNumber} ${target.commit} ${mergeMethod}`,
     );
     const result = await mergeDelivered(request, target, delivered, signal);
-    return result.outcome === "uncertain"
+    return result.outcome === turnOutcomes.uncertain
       ? result
       : { ...result, outcome: mergeConfirmationOutcome };
   }

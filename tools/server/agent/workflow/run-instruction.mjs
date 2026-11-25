@@ -74,9 +74,29 @@ import {
   publicationReport,
   pendingWorkCommitMessage,
   stripChangeSummary,
+  turnOutcomes,
 } from "../policy/development.mjs";
 
 const maximumSynchronizations = 3;
+
+// Publishes the reviewed private candidate of the topic without a model turn.
+const publishReviewedCommand = "/publica-revisio";
+
+// What the publisher answered once the cycle ended on a settled `main`.
+const publicationResults = Object.freeze({
+  published: "published",
+  unconfirmed: "unconfirmed",
+  reviewRequired: "review_required",
+  readFailed: "read_failed",
+  refused: "refused",
+});
+
+// The failures after which the service cannot tell what happened.
+const uncertainReasons = new Set([
+  instructionReportKeys.mergeCleanupUncertain,
+  instructionReportKeys.sandboxUncertain,
+  instructionReportKeys.publicationUncertain,
+]);
 
 // The offline preparation cannot read a manifest or lockfile that holds
 // conflict markers.
@@ -85,6 +105,55 @@ const dependencyManifestPattern =
 
 function failureReport(reason) {
   return { report: instructionReports[reason], reason };
+}
+
+function failedResult(reason) {
+  return { outcome: turnOutcomes.failed, ...failureReport(reason) };
+}
+
+function uncertainResult(reason) {
+  return { outcome: turnOutcomes.uncertain, ...failureReport(reason) };
+}
+
+function classifyPublication(publication) {
+  if (publication.unconfirmed) {
+    return publicationResults.unconfirmed;
+  }
+  if (!publication.refused) {
+    return publicationResults.published;
+  }
+  if (publication.reviewId) {
+    return publicationResults.reviewRequired;
+  }
+  if (publication.readFailed) {
+    return publicationResults.readFailed;
+  }
+  return publicationResults.refused;
+}
+
+function privateReviewText({ worktreeName, reviewId }) {
+  return `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${reviewId}`;
+}
+
+// The reason of an error that ended an instruction. The order matters: an
+// unconfirmed cleanup wins over the publication state and over a stop.
+function errorReason(error, { signal, publicationStarted }) {
+  if (error instanceof MergeCleanupError) {
+    return instructionReportKeys.mergeCleanupUncertain;
+  }
+  if (error instanceof SandboxCleanupError) {
+    return instructionReportKeys.sandboxUncertain;
+  }
+  if (publicationStarted) {
+    return instructionReportKeys.publicationUncertain;
+  }
+  // A local refusal before any publication: the worktree stays as it is.
+  if (error instanceof NestedRepositoryError) {
+    return instructionReportKeys.publicationRefused;
+  }
+  return signal?.aborted
+    ? instructionReportKeys.aborted
+    : instructionReportKeys.executionFailed;
 }
 
 function piRunDiagnostics(diagnostics) {
@@ -374,15 +443,11 @@ export function createInstructionRunner({
     // failed check.
     signal?.throwIfAborted();
     if (checks.timedOut) {
-      return {
-        report: instructionReports.checksTimedOut,
-        reason: instructionReportKeys.checksTimedOut,
-      };
+      return failureReport(instructionReportKeys.checksTimedOut);
     }
     if (checks.outputLimitExceeded || checks.exitCode !== 0) {
       return {
-        report: instructionReports.checksFailed,
-        reason: instructionReportKeys.checksFailed,
+        ...failureReport(instructionReportKeys.checksFailed),
         detail: checkFailureDetail({ checkCommand, checks, secrets }),
       };
     }
@@ -615,8 +680,7 @@ export function createInstructionRunner({
       (await headCommit(worktree, { signal })) !== commit
     ) {
       return {
-        report: instructionReports.checksFailed,
-        reason: instructionReportKeys.checksFailed,
+        ...failureReport(instructionReportKeys.checksFailed),
         detail:
           leftover.length > 0
             ? `Local check \`${checkCommand}\` left uncommitted changes: ${namedPaths(leftover, secrets)}.`
@@ -685,10 +749,7 @@ export function createInstructionRunner({
       });
     } catch {
       signal?.throwIfAborted();
-      return {
-        report: instructionReports.publicationReadFailed,
-        reason: instructionReportKeys.publicationReadFailed,
-      };
+      return failureReport(instructionReportKeys.publicationReadFailed);
     }
     if (pullRequest.state === "closed") {
       return { report: finishedTopicReport };
@@ -857,503 +918,631 @@ export function createInstructionRunner({
         error instanceof Error ? error.name : "unknown",
       );
     }
-    if (error instanceof MergeCleanupError) {
-      return {
-        outcome: "uncertain",
-        report: instructionReports.mergeCleanupUncertain,
-        reason: instructionReportKeys.mergeCleanupUncertain,
-      };
+    const reason = errorReason(error, { signal, publicationStarted });
+    if (uncertainReasons.has(reason)) {
+      return uncertainResult(reason);
     }
-    if (error instanceof SandboxCleanupError) {
+    if (reason === instructionReportKeys.publicationRefused) {
       return {
-        outcome: "uncertain",
-        report: instructionReports.sandboxUncertain,
-        reason: instructionReportKeys.sandboxUncertain,
-      };
-    }
-    if (publicationStarted) {
-      return {
-        outcome: "uncertain",
-        report: instructionReports.publicationUncertain,
-        reason: instructionReportKeys.publicationUncertain,
-      };
-    }
-    // A local refusal before any publication: the worktree stays as it is.
-    if (error instanceof NestedRepositoryError) {
-      return {
-        outcome: "failed",
-        report: instructionReports.publicationRefused,
-        reason: instructionReportKeys.publicationRefused,
+        ...failedResult(reason),
         detail: publicationRefusalDetail(
           "The worktree contains a nested Git repository or submodule. Remove it.",
         ),
       };
     }
+    return failedResult(reason);
+  }
+
+  /**
+   * What follows every confirmed publication, ordinary or merge
+   * synchronization. The publisher has already recorded the published commit;
+   * on a new pull request it has also tried to set the preview label.
+   */
+  function followUpPublication({
+    request,
+    publication,
+    branch,
+    usedAttachmentNames = [],
+    mergeSynchronization = false,
+  }) {
+    // Record the first confirmed publication. An existing binding is never
+    // replaced: later turns of the topic continue its recorded branch.
+    if (topicJobs.bindingOf(request.sessionKey) === null) {
+      topicJobs.bind({
+        sessionKey: request.sessionKey,
+        branch,
+        pullRequestNumber: publication.pullRequest.number,
+      });
+    }
+    closeUsedAttachments(request, usedAttachmentNames);
+    // The watch is durable before the report is sent, and it never waits for
+    // the CI of the commit: the queue keeps executing other instructions.
+    const ciWatch = registerCiWatch({
+      updateIdentifier: request.updateIdentifier,
+      sessionKey: request.sessionKey,
+      pullRequestNumber: publication.pullRequest.number,
+      commit: publication.commit,
+    });
+    // The `preview` label makes the publisher build every pushed head, so the
+    // topic receives the address of this commit without asking for it. A
+    // pull request without the label simply has no preview to report.
+    const previewTracked = followPreview({
+      updateIdentifier: request.updateIdentifier,
+      sessionKey: request.sessionKey,
+      authorIdentifier: request.authorIdentifier,
+      pullRequestNumber: publication.pullRequest.number,
+      commit: publication.commit,
+      ...(mergeSynchronization ? { mergeSynchronization } : {}),
+    });
+    return { ciWatch, previewTracked };
+  }
+
+  // An image is used only once the publication is confirmed: a refused or
+  // unknown publication keeps it in the topic store for the next turn.
+  function closeUsedAttachments(request, usedAttachmentNames) {
+    if (usedAttachmentNames.length === 0) {
+      return;
+    }
+    recordTrace({
+      updateIdentifier: request.updateIdentifier,
+      authorIdentifier: request.authorIdentifier,
+      sessionKey: request.sessionKey,
+      action: "attachment_used",
+      detail: usedAttachmentNames.join(","),
+    });
+    // The publication is already done, so a bookkeeping failure only logs.
+    try {
+      attachmentStore.remove(
+        identifiers.worktreeName(request.sessionKey),
+        usedAttachmentNames,
+      );
+    } catch (error) {
+      logger(
+        "attachment_store_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
+
+  // The state one ordinary turn shares between its phases and its failure
+  // handling.
+  function createTurn(request, signal) {
     return {
-      outcome: "failed",
-      reason: signal?.aborted
-        ? instructionReportKeys.aborted
-        : instructionReportKeys.executionFailed,
-      report: signal?.aborted
-        ? instructionReports.aborted
-        : instructionReports.executionFailed,
+      request,
+      signal,
+      // The Pi session file keeps the session identifier: it lives outside the
+      // sandbox. Every name the sandbox can read is opaque.
+      piSessionIdentifier: sessionIdentifier(request.sessionKey),
+      worktreeName: identifiers.worktreeName(request.sessionKey),
+      changeSuffix: identifiers.changeSuffix(request.updateIdentifier),
+      publishReviewed: request.instruction === publishReviewedCommand,
+      publicationStarted: false,
+      // The model's answer, which a later failure of the checks or of the
+      // publication still delivers.
+      answer: "",
+      // The worktree whose ignored attachment directory this turn staged, so the
+      // copy disappears even when the model fails, times out or is aborted.
+      stagedAttachmentPath: null,
     };
   }
 
+  // A merge command ignores an attached image and says so.
+  async function runMergeCommand(request, mergeCommand, { signal }) {
+    const merged = await requestMerge(request, mergeCommand, { signal });
+    if ((request.attachments ?? []).length === 0) {
+      return merged;
+    }
+    return {
+      ...merged,
+      report: `${merged.report}\n${attachmentReports.ignored}`,
+    };
+  }
+
+  // The worktree of the turn and, on a topic bound to a pull request, the
+  // exact head this turn continues.
+  async function prepareTopic(turn) {
+    const { request, worktreeName, signal } = turn;
+    const topic = await readTopicWorktree(worktreeName, { signal });
+    const binding = topicJobs.bindingOf(request.sessionKey);
+    // The topic state decides whether the job is new. A queue row that never
+    // reached a turn (rejected, merge or confirmation) leaves none.
+    prepareResearchJob(worktreeName, {
+      newJob: !topic.worktree && binding === null,
+    });
+    if (turn.publishReviewed && !isResearchAffected(worktreeName)) {
+      return {
+        endedWith: {
+          outcome: turnOutcomes.answered,
+          report: "Aquesta feina no té cap revisió de recerca pendent.",
+        },
+      };
+    }
+    if (binding !== null) {
+      return continueBoundTopic(turn, { binding, topic });
+    }
+    const worktree = await ensureSessionWorktree({
+      repositoryPath,
+      worktreeRoot,
+      name: worktreeName,
+      signal,
+    });
+    return { worktree, continuedPullRequest: undefined };
+  }
+
+  async function continueBoundTopic(turn, { binding, topic }) {
+    const { request, signal } = turn;
+    const bound = await readValidBoundPullRequest({ binding, topic, signal });
+    if (bound.report) {
+      return { endedWith: { outcome: turnOutcomes.failed, ...bound } };
+    }
+    const notFollowed = await followBoundPullRequest({
+      binding,
+      topic,
+      pullRequest: bound.pullRequest,
+      sessionKey: request.sessionKey,
+      personMessage: request.instruction,
+      worktreeName: turn.worktreeName,
+      sessionIdentifier: turn.piSessionIdentifier,
+      signal,
+    });
+    if (notFollowed !== null) {
+      return { endedWith: { outcome: turnOutcomes.failed, ...notFollowed } };
+    }
+    // A resumed pull request and a continuation that happens in place only
+    // update that exact pull request: the publisher revalidates it before the
+    // push and never opens another one.
+    return {
+      worktree: topic.worktree,
+      continuedPullRequest: {
+        pullRequestNumber: binding.pullRequestNumber,
+        commit: bound.pullRequest.headSha,
+      },
+    };
+  }
+
+  // The prompt of the turn, with the stored and new images of the topic.
+  async function prepareModelInput(turn, { worktree, instruction }) {
+    const attachments = turn.request.attachments ?? [];
+    const withoutAttachments = {
+      instruction,
+      attachments: [],
+      images: [],
+      worktreePrepared: false,
+    };
+    if (turn.publishReviewed) {
+      return withoutAttachments;
+    }
+    if (
+      attachments.length === 0 &&
+      attachmentStore.list(turn.worktreeName).length === 0
+    ) {
+      return withoutAttachments;
+    }
+    turn.stagedAttachmentPath = worktree.path;
+    const applied = await applyAttachments({
+      attachments,
+      instruction,
+      request: turn.request,
+      worktree,
+      worktreeName: turn.worktreeName,
+      signal: turn.signal,
+    });
+    if (applied.report) {
+      return {
+        endedWith: { outcome: turnOutcomes.failed, report: applied.report },
+      };
+    }
+    return {
+      instruction: applied.instruction,
+      attachments: applied.attachments,
+      images: applied.images,
+      worktreePrepared: applied.scaledInSandbox === true,
+    };
+  }
+
+  async function runModelTurn(
+    turn,
+    { worktree, input, topicState, resumedResearch },
+  ) {
+    if (turn.publishReviewed) {
+      return { modelResult: { text: "" }, webTurn: undefined };
+    }
+    const { request, worktreeName, signal } = turn;
+    // The effects of the service are claimed at the one point where the turn
+    // really starts: the sandbox and the profile are ready and Pi is about to
+    // receive the prompt. A preparation that never reached the model leaves
+    // them undelivered. Once claimed, they are returned only when the prompt
+    // was never written: `onPromptSent` is that fact, so it holds even when a
+    // cleanup failure wins over an error of the launch or of the stop.
+    let claimedNotes = null;
+    let promptSent = false;
+    const claimServiceNotes = () => {
+      if (claimedNotes === null) {
+        claimedNotes =
+          safelyWithNotes(() => sessionNotes.claim(request.sessionKey)) ?? [];
+      }
+      return claimedNotes.map((note) => note.text);
+    };
+    const webTurn = research?.turn(request, {
+      worktreeName,
+      signal,
+      resumedResearch,
+    });
+    try {
+      const modelResult = await runModel({
+        sessionIdentifier: turn.piSessionIdentifier,
+        sandboxIdentifier: worktreeName,
+        sessionKey: request.sessionKey,
+        instruction: input.instruction,
+        images: input.images,
+        attachments: input.attachments,
+        worktreePrepared: input.worktreePrepared,
+        webResearch: webTurn?.tool,
+        topicState,
+        claimServiceNotes,
+        // The runtime calls this immediately before it writes the prompt: it
+        // is the one fact that says a prompt may have reached Pi.
+        onPromptSent: () => {
+          promptSent = true;
+        },
+        worktreePath: worktree.path,
+        signal,
+      });
+      return { modelResult, webTurn };
+    } finally {
+      settleClaimedNotes({ claimedNotes, promptSent });
+    }
+  }
+
+  // The result that ends the instruction when the model turn gave nothing to
+  // publish, or null.
+  function modelTurnEnding(turn, { modelResult, webTurn }) {
+    if (webTurn?.waitingForConfirmation()) {
+      return {
+        outcome: turnOutcomes.answered,
+        report:
+          "La cerca espera la teva confirmació. No he publicat cap canvi.",
+      };
+    }
+    if (modelResult.preparationFailed) {
+      return failedResult(instructionReportKeys.preparationFailed);
+    }
+    if (modelResult.timedOut) {
+      logger("execution_timed_out", turn.worktreeName);
+      return failedResult(instructionReportKeys.modelTimedOut);
+    }
+    turn.signal?.throwIfAborted();
+    if (modelResult.aborted) {
+      return failedResult(instructionReportKeys.aborted);
+    }
+    // The provider failed the turn: its partial edits stay in the worktree
+    // unpublished and the text is not an answer.
+    if (modelResult.errorMessage) {
+      return failedResult(instructionReportKeys.modelProviderFailed);
+    }
+    return null;
+  }
+
+  /**
+   * The model copies an image it uses to a content path. Before the copy in the
+   * ignored directory disappears, the service remembers which stored images
+   * reached the worktree outside it, including the ones a previous attempt
+   * already committed and this publication retries. A published change closes
+   * them.
+   */
+  async function readUsedAttachmentNames(turn, worktree) {
+    const { signal } = turn;
+    const attachmentPaths = [
+      ...(await listChangedPaths(worktree, { signal })),
+      ...(await committedPaths(worktree, { signal })),
+    ];
+    return attachmentStore.used(
+      turn.worktreeName,
+      worktree.path,
+      attachmentPaths,
+    );
+  }
+
+  // The person reads the model's answer, never its change summary: the service
+  // owns the summary and strips the line from every text.
+  function personAnswer({ modelResult, webTurn }, resumedResearch) {
+    const plainAnswer = stripChangeSummary(modelResult.text);
+    if (webTurn) {
+      return webTurn.withSources(plainAnswer);
+    }
+    return resumedResearch?.withSources(plainAnswer) ?? plainAnswer;
+  }
+
+  // Whatever the model moved is already outside the attachment directory.
+  // Removing it before the checks and the commit means a received image never
+  // reaches a commit or a publication, even on a branch whose .gitignore lacks
+  // the rule.
+  function discardStagedAttachments(turn, worktree) {
+    removeAttachmentDirectory({ worktreePath: worktree.path });
+    turn.stagedAttachmentPath = null;
+  }
+
+  async function hasWorkToPublish(worktree, { signal }) {
+    const changedPaths = await listChangedPaths(worktree, { signal });
+    return (
+      changedPaths.length > 0 ||
+      (await hasUnpublishedCommit(worktree, { signal }))
+    );
+  }
+
+  function answerWithoutChanges(answer) {
+    return {
+      outcome: turnOutcomes.answered,
+      modelAnswer: answer !== "",
+      serviceText: null,
+      report: answer || instructionReports.clarification,
+    };
+  }
+
+  async function prepareWorkBranch(turn, { worktree, modelText }) {
+    const { signal } = turn;
+    const summary = isResearchAffected(turn.worktreeName)
+      ? null
+      : parseChangeSummary(modelText);
+    const title = fallbackTitle({ summary });
+    const existingBranch = await currentBranch(worktree, { signal });
+    if (existingBranch) {
+      return { title, branch: assertWorkBranch(existingBranch) };
+    }
+    const branch = branchNameForChange({ summary, suffix: turn.changeSuffix });
+    await createBranch({ worktree, branch, signal });
+    return { title, branch };
+  }
+
+  // `main` is integrated before the gate, and the gate depends on what the
+  // synchronized publication would contain: a change that stays inside the
+  // content never runs the operational server tests.
+  function publishTurn(
+    turn,
+    { worktree, title, branch, continuedPullRequest, topicState },
+  ) {
+    const { signal } = turn;
+    return publishSynchronized({
+      synchronization: {
+        worktree,
+        worktreeName: turn.worktreeName,
+        sessionIdentifier: turn.piSessionIdentifier,
+        sessionKey: turn.request.sessionKey,
+        title,
+        topicState,
+        signal,
+      },
+      publication: {
+        branch,
+        repair: continuedPullRequest,
+        researchJobId: turn.worktreeName,
+      },
+      unsettledReport: {
+        ...failureReport(instructionReportKeys.publicationRefused),
+        detail: publicationRefusalDetail(
+          "main kept advancing while the change was being published.",
+        ),
+      },
+      // The instruction only becomes possibly published when the publisher is
+      // about to write to GitHub: a read of the pull request that fails before
+      // the push is a local failure, never an unknown result.
+      onPublicationStarted: () => {
+        turn.publicationStarted = true;
+      },
+      signal,
+    });
+  }
+
+  // The result of a turn whose publisher did not confirm a publication.
+  function unpublishedTurnResult(turn, { publicationResult, publication }) {
+    const { worktreeName, answer } = turn;
+    if (publicationResult === publicationResults.unconfirmed) {
+      return uncertainResult(instructionReportKeys.publicationUncertain);
+    }
+    if (publicationResult === publicationResults.reviewRequired) {
+      const serviceText = privateReviewText({
+        worktreeName,
+        reviewId: publication.reviewId,
+      });
+      return {
+        outcome: turnOutcomes.researchReviewRequired,
+        serviceText,
+        report: [answer, serviceText].filter(Boolean).join("\n\n"),
+      };
+    }
+    if (publicationResult === publicationResults.readFailed) {
+      logger("publication_read_failed", worktreeName);
+      return failedResult(instructionReportKeys.publicationReadFailed);
+    }
+    logger("publication_refused", worktreeName);
+    return {
+      ...failedResult(instructionReportKeys.publicationRefused),
+      detail: publicationRefusalDetail(publication.reason, { secrets }),
+      answer,
+    };
+  }
+
+  function publishedTurnResult(
+    turn,
+    { publication, ciWatch, branch, checkCommand },
+  ) {
+    const publicationNotices = {
+      pullRequest: publication.pullRequest,
+      ciWatch,
+      previewLabelFailed: publication.previewLabelFailed,
+    };
+    if (ciWatch === ciWatchOutcomes.unavailable) {
+      noteMaintainerAttention({
+        request: turn.request,
+        reason: ciWatchUnavailableReason,
+      });
+    }
+    if (publication.previewLabelFailed) {
+      noteMaintainerAttention({
+        request: turn.request,
+        reason: instructionReportKeys.previewLabelFailed,
+      });
+    }
+    const report = publicationReport({
+      ...publicationNotices,
+      answer: turn.answer,
+    });
+    // The publication happened, but no durable CI watch records it: an older
+    // notice of the topic must not authorize anything from now on, so the
+    // instruction ends unknown and a person reconciles it.
+    let outcome = publication.created
+      ? turnOutcomes.pullRequestCreated
+      : turnOutcomes.pullRequestUpdated;
+    if (ciWatch === ciWatchOutcomes.unavailable) {
+      outcome = turnOutcomes.uncertain;
+    }
+    return {
+      outcome,
+      report,
+      serviceText: publicationNoteText({
+        ...publicationNotices,
+        created: publication.created,
+        branch,
+        commit: publication.commit,
+        checkCommand,
+      }),
+    };
+  }
+
+  // A writable turn in the topic, read as its phases.
+  async function runTopicTurn(turn) {
+    const { request, signal } = turn;
+    const resumedResearch = await research?.resume(request, { signal });
+    if (resumedResearch?.report) {
+      return {
+        outcome: turnOutcomes.answered,
+        report: resumedResearch.report,
+      };
+    }
+
+    const topic = await prepareTopic(turn);
+    if (topic.endedWith) {
+      return topic.endedWith;
+    }
+    const { worktree, continuedPullRequest } = topic;
+
+    const input = await prepareModelInput(turn, {
+      worktree,
+      instruction: resumedResearch?.instruction ?? request.instruction,
+    });
+    if (input.endedWith) {
+      return input.endedWith;
+    }
+
+    // The topic state is service data; the model cannot read it in the sandbox.
+    const topicState = await topicStateOf(request.sessionKey, {
+      continuedPullRequestNumber:
+        continuedPullRequest?.pullRequestNumber ?? null,
+      signal,
+    });
+    const modelTurn = await runModelTurn(turn, {
+      worktree,
+      input,
+      topicState,
+      resumedResearch,
+    });
+    const ending = modelTurnEnding(turn, modelTurn);
+    if (ending !== null) {
+      return ending;
+    }
+
+    const usedAttachmentNames = await readUsedAttachmentNames(turn, worktree);
+    turn.answer = personAnswer(modelTurn, resumedResearch);
+    discardStagedAttachments(turn, worktree);
+    if (!(await hasWorkToPublish(worktree, { signal }))) {
+      return answerWithoutChanges(turn.answer);
+    }
+
+    const { title, branch } = await prepareWorkBranch(turn, {
+      worktree,
+      modelText: modelTurn.modelResult.text,
+    });
+    const cycle = await publishTurn(turn, {
+      worktree,
+      title,
+      branch,
+      continuedPullRequest,
+      topicState,
+    });
+    if (cycle.failure) {
+      return {
+        outcome: turnOutcomes.failed,
+        ...cycle.failure,
+        answer: turn.answer,
+      };
+    }
+    const { publication, synchronized } = cycle;
+    const publicationResult = classifyPublication(publication);
+    if (publicationResult !== publicationResults.published) {
+      return unpublishedTurnResult(turn, { publicationResult, publication });
+    }
+
+    const { ciWatch } = followUpPublication({
+      request,
+      publication,
+      branch,
+      usedAttachmentNames,
+    });
+    return publishedTurnResult(turn, {
+      publication,
+      ciWatch,
+      branch,
+      checkCommand: synchronized.checkCommand,
+    });
+  }
+
+  // The copy is best-effort bookkeeping: a directory the model or the runtime
+  // already removed is the wanted state.
+  function cleanUpStagedAttachments({ stagedAttachmentPath }) {
+    if (stagedAttachmentPath === null) {
+      return;
+    }
+    try {
+      removeAttachmentDirectory({ worktreePath: stagedAttachmentPath });
+    } catch (error) {
+      logger(
+        "attachment_cleanup_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
+
   async function execute(request, { signal } = {}) {
-    // The Pi session file keeps the session identifier: it lives outside the
-    // sandbox. Every name the sandbox can read is opaque.
-    const piSessionIdentifier = sessionIdentifier(request.sessionKey);
-    const worktreeName = identifiers.worktreeName(request.sessionKey);
-    const changeSuffix = identifiers.changeSuffix(request.updateIdentifier);
-    const attachments = request.attachments ?? [];
-    // A merge command ignores an attached image and says so.
-    const ignoringAttachment = (report) =>
-      attachments.length === 0
-        ? report
-        : `${report}\n${attachmentReports.ignored}`;
-    let publicationStarted = false;
-    // The model's answer, which a later failure of the checks or of the
-    // publication still delivers.
-    let answer = "";
-    // The worktree whose ignored attachment directory this turn staged, so the
-    // copy disappears even when the model fails, times out or is aborted.
-    let stagedAttachmentPath = null;
+    const turn = createTurn(request, signal);
     try {
       signal?.throwIfAborted();
       // A merge is recognised from the literal command, so the model never sees
       // it.
       const mergeCommand = parseMergeCommand(request.instruction);
       if (mergeCommand !== null) {
-        const merged = await requestMerge(request, mergeCommand, { signal });
-        return { ...merged, report: ignoringAttachment(merged.report) };
+        return await runMergeCommand(request, mergeCommand, { signal });
       }
       const confirmation = requestMergeConfirmation.contextualIntent(request);
       if (confirmation !== null) {
+        // Not awaited: a rejection of the confirmation reaches the caller as it
+        // is, not as a failed instruction.
         return requestMergeConfirmation.handleConfirmation(
           request,
           confirmation,
           { signal },
         );
       }
-      const resumedResearch = await research?.resume(request, { signal });
-      if (resumedResearch?.report) {
-        return { outcome: "answered", report: resumedResearch.report };
-      }
-      const publishReviewed = request.instruction === "/publica-revisio";
-      const topic = await readTopicWorktree(worktreeName, { signal });
-      const binding = topicJobs.bindingOf(request.sessionKey);
-      // The topic state decides whether the job is new. A queue row that never
-      // reached a turn (rejected, merge or confirmation) leaves none.
-      prepareResearchJob(worktreeName, {
-        newJob: !topic.worktree && binding === null,
-      });
-      if (publishReviewed && !isResearchAffected(worktreeName)) {
-        return {
-          outcome: "answered",
-          report: "Aquesta feina no té cap revisió de recerca pendent.",
-        };
-      }
-      let boundContinuation = null;
-      if (binding !== null) {
-        const bound = await readValidBoundPullRequest({
-          binding,
-          topic,
-          signal,
-        });
-        if (bound.report) {
-          return { outcome: "failed", ...bound };
-        }
-        const notFollowed = await followBoundPullRequest({
-          binding,
-          topic,
-          pullRequest: bound.pullRequest,
-          sessionKey: request.sessionKey,
-          personMessage: request.instruction,
-          worktreeName,
-          sessionIdentifier: piSessionIdentifier,
-          signal,
-        });
-        if (notFollowed !== null) {
-          return { outcome: "failed", ...notFollowed };
-        }
-        boundContinuation = {
-          pullRequestNumber: binding.pullRequestNumber,
-          baseHeadSha: bound.pullRequest.headSha,
-        };
-      }
-      const continuedPullRequestNumber =
-        boundContinuation?.pullRequestNumber ?? null;
-      const continuedBaseHeadSha = boundContinuation?.baseHeadSha ?? null;
-      let worktree;
-      if (boundContinuation) {
-        worktree = topic.worktree;
-      } else {
-        worktree = await ensureSessionWorktree({
-          repositoryPath,
-          worktreeRoot,
-          name: worktreeName,
-          signal,
-        });
-      }
-      let instruction = resumedResearch?.instruction ?? request.instruction;
-      let stagedAttachments = [];
-      let promptImages = [];
-      let worktreePrepared = false;
-      const hasStoredAttachments =
-        attachmentStore.list(worktreeName).length > 0;
-      if (
-        !publishReviewed &&
-        (attachments.length > 0 || hasStoredAttachments)
-      ) {
-        stagedAttachmentPath = worktree.path;
-        const applied = await applyAttachments({
-          attachments,
-          instruction,
-          request,
-          worktree,
-          worktreeName,
-          signal,
-        });
-        if (applied.report) {
-          return { outcome: "failed", report: applied.report };
-        }
-        instruction = applied.instruction;
-        stagedAttachments = applied.attachments;
-        promptImages = applied.images;
-        worktreePrepared = applied.scaledInSandbox === true;
-      }
-      // The effects of the service are claimed at the one point where the turn
-      // really starts: the sandbox and the profile are ready and Pi is about to
-      // receive the prompt. A preparation that never reached the model leaves
-      // them undelivered. Once claimed, they are returned only when the prompt
-      // was never written: `onPromptSent` is that fact, so it holds even when a
-      // cleanup failure wins over an error of the launch or of the stop.
-      let claimedNotes = null;
-      let promptSent = false;
-      // The topic state is service data; the model cannot read it in the sandbox.
-      const topicState = await topicStateOf(request.sessionKey, {
-        continuedPullRequestNumber,
-        signal,
-      });
-      const claimServiceNotes = () => {
-        if (claimedNotes === null) {
-          claimedNotes =
-            safelyWithNotes(() => sessionNotes.claim(request.sessionKey)) ?? [];
-        }
-        return claimedNotes.map((note) => note.text);
-      };
-      let modelResult;
-      const webTurn = publishReviewed
-        ? undefined
-        : research?.turn(request, {
-            worktreeName,
-            signal,
-            resumedResearch,
-          });
-      try {
-        modelResult = publishReviewed
-          ? { text: "" }
-          : await runModel({
-              sessionIdentifier: piSessionIdentifier,
-              sandboxIdentifier: worktreeName,
-              sessionKey: request.sessionKey,
-              instruction,
-              images: promptImages,
-              attachments: stagedAttachments,
-              worktreePrepared,
-              webResearch: webTurn?.tool,
-              topicState,
-              claimServiceNotes,
-              // The runtime calls this immediately before it writes the prompt: it
-              // is the one fact that says a prompt may have reached Pi.
-              onPromptSent: () => {
-                promptSent = true;
-              },
-              worktreePath: worktree.path,
-              signal,
-            });
-      } catch (error) {
-        settleClaimedNotes({ claimedNotes, promptSent });
-        throw error;
-      }
-      settleClaimedNotes({ claimedNotes, promptSent });
-      if (webTurn?.waitingForConfirmation()) {
-        return {
-          outcome: "answered",
-          report:
-            "La cerca espera la teva confirmació. No he publicat cap canvi.",
-        };
-      }
-      if (modelResult.preparationFailed) {
-        return {
-          outcome: "failed",
-          report: instructionReports.preparationFailed,
-          reason: instructionReportKeys.preparationFailed,
-        };
-      }
-      if (modelResult.timedOut) {
-        logger("execution_timed_out", worktreeName);
-        return {
-          outcome: "failed",
-          report: instructionReports.modelTimedOut,
-          reason: instructionReportKeys.modelTimedOut,
-        };
-      }
-      signal?.throwIfAborted();
-      if (modelResult.aborted) {
-        return {
-          outcome: "failed",
-          report: instructionReports.aborted,
-          reason: instructionReportKeys.aborted,
-        };
-      }
-      // The provider failed the turn: its partial edits stay in the worktree
-      // unpublished and the text is not an answer.
-      if (modelResult.errorMessage) {
-        return {
-          outcome: "failed",
-          report: instructionReports.modelProviderFailed,
-          reason: instructionReportKeys.modelProviderFailed,
-        };
-      }
-      // The model copies an image it uses to a content path. Before the copy in
-      // the ignored directory disappears, the service remembers which stored
-      // images reached the worktree outside it, including the ones a previous
-      // attempt already committed and this publication retries. A published
-      // change closes them.
-      const attachmentPaths = [
-        ...(await listChangedPaths(worktree, { signal })),
-        ...(await committedPaths(worktree, { signal })),
-      ];
-      const usedAttachmentNames = attachmentStore.used(
-        worktreeName,
-        worktree.path,
-        attachmentPaths,
-      );
-      // The person reads the model's answer, never its change summary: the
-      // service owns the summary and strips the line from every text.
-      const plainAnswer = stripChangeSummary(modelResult.text);
-      answer = webTurn
-        ? webTurn.withSources(plainAnswer)
-        : (resumedResearch?.withSources(plainAnswer) ?? plainAnswer);
-      // Whatever the model moved is already outside this directory. Removing it
-      // before the checks and the commit means a received image never reaches a
-      // commit or a publication, even on a branch whose .gitignore lacks the
-      // rule.
-      removeAttachmentDirectory({ worktreePath: worktree.path });
-      stagedAttachmentPath = null;
-      const changedPaths = await listChangedPaths(worktree, { signal });
-      if (
-        changedPaths.length === 0 &&
-        !(await hasUnpublishedCommit(worktree, { signal }))
-      ) {
-        return {
-          outcome: "answered",
-          modelAnswer: answer !== "",
-          serviceText: null,
-          report: answer || instructionReports.clarification,
-        };
-      }
-      const summary = isResearchAffected(worktreeName)
-        ? null
-        : parseChangeSummary(modelResult.text);
-      const title = fallbackTitle({ summary });
-      const existingBranch = await currentBranch(worktree, { signal });
-      const branch = existingBranch
-        ? assertWorkBranch(existingBranch)
-        : branchNameForChange({ summary, suffix: changeSuffix });
-      if (!existingBranch) {
-        await createBranch({ worktree, branch, signal });
-      }
-      // A resumed pull request and a continuation that happens in place only
-      // update that exact pull request: the publisher revalidates it before the
-      // push and never opens another one.
-      const continuedPullRequest =
-        continuedPullRequestNumber === null
-          ? undefined
-          : {
-              pullRequestNumber: continuedPullRequestNumber,
-              commit: continuedBaseHeadSha,
-            };
-      // `main` is integrated before the gate, and the gate depends on what the
-      // synchronized publication would contain: a change that stays inside the
-      // content never runs the operational server tests. The instruction only
-      // becomes possibly published when the publisher is about to write to
-      // GitHub: a read of the pull request that fails before the push is a
-      // local failure, never an unknown result.
-      const cycle = await publishSynchronized({
-        synchronization: {
-          worktree,
-          worktreeName,
-          sessionIdentifier: piSessionIdentifier,
-          sessionKey: request.sessionKey,
-          title,
-          topicState,
-          signal,
-        },
-        publication: {
-          branch,
-          repair: continuedPullRequest,
-          researchJobId: worktreeName,
-        },
-        unsettledReport: {
-          report: instructionReports.publicationRefused,
-          reason: instructionReportKeys.publicationRefused,
-          detail: publicationRefusalDetail(
-            "main kept advancing while the change was being published.",
-          ),
-        },
-        onPublicationStarted: () => {
-          publicationStarted = true;
-        },
-        signal,
-      });
-      if (cycle.failure) {
-        return { outcome: "failed", ...cycle.failure, answer };
-      }
-      const { publication, synchronized } = cycle;
-      const { checkCommand } = synchronized;
-      if (publication.unconfirmed) {
-        return {
-          outcome: "uncertain",
-          report: instructionReports.publicationUncertain,
-          reason: instructionReportKeys.publicationUncertain,
-        };
-      }
-      if (publication.refused) {
-        if (publication.reviewId) {
-          const serviceText = `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`;
-          return {
-            outcome: "research_review_required",
-            serviceText,
-            report: [answer, serviceText].filter(Boolean).join("\n\n"),
-          };
-        }
-        if (publication.readFailed) {
-          logger("publication_read_failed", worktreeName);
-          return {
-            outcome: "failed",
-            report: instructionReports.publicationReadFailed,
-            reason: instructionReportKeys.publicationReadFailed,
-          };
-        }
-        logger("publication_refused", worktreeName);
-        return {
-          outcome: "failed",
-          report: instructionReports.publicationRefused,
-          reason: instructionReportKeys.publicationRefused,
-          detail: publicationRefusalDetail(publication.reason, { secrets }),
-          answer,
-        };
-      }
-      // Record the first confirmed publication. An existing binding is never
-      // replaced: later turns of the topic continue its recorded branch.
-      if (topicJobs.bindingOf(request.sessionKey) === null) {
-        topicJobs.bind({
-          sessionKey: request.sessionKey,
-          branch,
-          pullRequestNumber: publication.pullRequest.number,
-        });
-      }
-      // The image is used only once the publication is confirmed: a refused or
-      // unknown publication keeps it available for the next turn.
-      if (usedAttachmentNames.length > 0) {
-        recordTrace({
-          updateIdentifier: request.updateIdentifier,
-          authorIdentifier: request.authorIdentifier,
-          sessionKey: request.sessionKey,
-          action: "attachment_used",
-          detail: usedAttachmentNames.join(","),
-        });
-      }
-      // The image is part of a published change: it no longer needs to stay in
-      // the topic store. A refused publication keeps it for the next turn. The
-      // publication is already done, so a bookkeeping failure only logs.
-      if (usedAttachmentNames.length > 0) {
-        try {
-          attachmentStore.remove(worktreeName, usedAttachmentNames);
-        } catch (error) {
-          logger(
-            "attachment_store_failed",
-            error instanceof Error ? error.name : "unknown",
-          );
-        }
-      }
-      // The watch is durable before the report is sent, and it never waits for
-      // the CI of the commit: the queue keeps executing other instructions.
-      const ciWatch = registerCiWatch({
-        updateIdentifier: request.updateIdentifier,
-        sessionKey: request.sessionKey,
-        pullRequestNumber: publication.pullRequest.number,
-        commit: publication.commit,
-      });
-      // The `preview` label makes the publisher build every pushed head, so the
-      // topic receives the address of this commit without asking for it. A
-      // pull request without the label simply has no preview to report.
-      followPreview({
-        updateIdentifier: request.updateIdentifier,
-        sessionKey: request.sessionKey,
-        authorIdentifier: request.authorIdentifier,
-        pullRequestNumber: publication.pullRequest.number,
-        commit: publication.commit,
-      });
-      const publicationNotices = {
-        pullRequest: publication.pullRequest,
-        ciWatch,
-        previewLabelFailed: publication.previewLabelFailed,
-      };
-      if (ciWatch === ciWatchOutcomes.unavailable) {
-        noteMaintainerAttention({ request, reason: ciWatchUnavailableReason });
-      }
-      if (publication.previewLabelFailed) {
-        noteMaintainerAttention({
-          request,
-          reason: instructionReportKeys.previewLabelFailed,
-        });
-      }
-      const publicationText = publicationReport({
-        ...publicationNotices,
-        answer,
-      });
-      // The publication happened, but no durable CI watch records it: an older
-      // notice of the topic must not authorize anything from now on, so the
-      // instruction ends unknown and a person reconciles it.
-      let outcome = publication.created
-        ? "pull_request_created"
-        : "pull_request_updated";
-      if (ciWatch === ciWatchOutcomes.unavailable) {
-        outcome = "uncertain";
-      }
-      return {
-        outcome,
-        report: publicationText,
-        serviceText: publicationNoteText({
-          ...publicationNotices,
-          created: publication.created,
-          branch,
-          commit: publication.commit,
-          checkCommand,
-        }),
-      };
+      return await runTopicTurn(turn);
     } catch (error) {
       return {
-        ...failureResult(error, { signal, publicationStarted }),
-        answer,
+        ...failureResult(error, {
+          signal,
+          publicationStarted: turn.publicationStarted,
+        }),
+        answer: turn.answer,
       };
     } finally {
-      if (stagedAttachmentPath !== null) {
-        try {
-          removeAttachmentDirectory({ worktreePath: stagedAttachmentPath });
-        } catch (error) {
-          // The copy is best-effort bookkeeping: a directory the model or the
-          // runtime already removed is the wanted state.
-          logger(
-            "attachment_cleanup_failed",
-            error instanceof Error ? error.name : "unknown",
-          );
-        }
-      }
+      cleanUpStagedAttachments(turn);
     }
   }
 
@@ -1380,7 +1569,7 @@ export function createInstructionRunner({
     // The worktree to bring back to `commit` when this preparation ends without
     // a publication.
     let unpublishedWorktree = null;
-    const failed = (failure) => ({ outcome: "failed", ...failure });
+    const failed = (failure) => ({ outcome: turnOutcomes.failed, ...failure });
     try {
       signal?.throwIfAborted();
       const binding = topicJobs.bindingOf(request.sessionKey);
@@ -1450,7 +1639,7 @@ export function createInstructionRunner({
       if (mergeBase.trim() === mainHead) {
         // Nothing to integrate: no commit, no gate, no publication.
         return {
-          outcome: "up_to_date",
+          outcome: turnOutcomes.upToDate,
           report: mergeSynchronizationReports.upToDate({ pullRequestNumber }),
           mainHead,
           commit,
@@ -1494,43 +1683,44 @@ export function createInstructionRunner({
         return failed(cycle.failure);
       }
       const { publication, synchronized } = cycle;
-      if (publication.refused) {
-        if (publication.reviewId) {
-          unpublishedWorktree = null;
-          return {
-            outcome: "research_review_required",
-            report: `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`,
-          };
-        }
-        if (publication.readFailed) {
-          return failed(
-            failureReport(instructionReportKeys.publicationReadFailed),
-          );
-        }
-        return failed({
-          ...failureReport(instructionReportKeys.publicationRefused),
+      const publicationResult = classifyPublication(publication);
+      if (publicationResult === publicationResults.unconfirmed) {
+        // The push happened: the branch is not brought back.
+        unpublishedWorktree = null;
+        return uncertainResult(instructionReportKeys.publicationUncertain);
+      }
+      if (publicationResult === publicationResults.reviewRequired) {
+        unpublishedWorktree = null;
+        return {
+          outcome: turnOutcomes.researchReviewRequired,
+          report: privateReviewText({
+            worktreeName,
+            reviewId: publication.reviewId,
+          }),
+        };
+      }
+      if (publicationResult === publicationResults.readFailed) {
+        return failedResult(instructionReportKeys.publicationReadFailed);
+      }
+      if (publicationResult === publicationResults.refused) {
+        return {
+          ...failedResult(instructionReportKeys.publicationRefused),
           detail: publicationRefusalDetail(publication.reason, { secrets }),
-        });
+        };
       }
       unpublishedWorktree = null;
-      const ciWatch = registerCiWatch({
-        updateIdentifier: request.updateIdentifier,
-        sessionKey: request.sessionKey,
-        pullRequestNumber: publication.pullRequest.number,
-        commit: publication.commit,
-      });
-      const previewTracked = followPreview({
-        updateIdentifier: request.updateIdentifier,
-        sessionKey: request.sessionKey,
-        authorIdentifier: request.authorIdentifier,
-        pullRequestNumber: publication.pullRequest.number,
-        commit: publication.commit,
+      const { ciWatch, previewTracked } = followUpPublication({
+        request,
+        publication,
+        branch,
         mergeSynchronization: true,
       });
       const trackingFailed =
         ciWatch === ciWatchOutcomes.unavailable || previewTracked === false;
       return {
-        outcome: trackingFailed ? "uncertain" : "synchronized",
+        outcome: trackingFailed
+          ? turnOutcomes.uncertain
+          : turnOutcomes.synchronized,
         report: trackingFailed
           ? mergeSynchronizationReports.followUpUnconfirmed({
               pullRequestNumber,
@@ -1547,7 +1737,7 @@ export function createInstructionRunner({
       const result = failureResult(error, { signal, publicationStarted });
       // An uncertain result or a nested repository stays for a person to see.
       if (
-        result.outcome === "uncertain" ||
+        result.outcome === turnOutcomes.uncertain ||
         error instanceof NestedRepositoryError
       ) {
         unpublishedWorktree = null;
