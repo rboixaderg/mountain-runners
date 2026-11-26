@@ -15,9 +15,12 @@ entregues compromeses.
 1. **Capturada:** la necessitat queda registrada amb el problema que vol resoldre.
 2. **En anàlisi:** es concreten valor, abast, dependències, riscos i criteris
    d'èxit.
-3. **Incorporada:** es decideix convertir la necessitat en una entrega concreta
-   i deixa de ser una entrada oberta del backlog.
-4. **Descartada:** es documenta breument per què no es farà.
+3. **Incorporada:** es converteix en una especificació o pull request pròpia,
+   surt de «Necessitats Obertes» i es redueix a una fila d'enllaç a
+   «Necessitats Incorporades», sense duplicar el contingut del document
+   propietari.
+4. **Descartada:** es retira del backlog i el motiu queda registrat a la pull
+   request o a l'historial de Git.
 
 El backlog no assigna necessitats a fases ni en condiciona l'abast. Es revisa en
 definir una nova especificació, quan entre les entregues d'una fase es detecta
@@ -36,459 +39,15 @@ tenir un ADR.
 
 ## Informació Mínima
 
-Cada entrada ha d'indicar:
+Cada entrada oberta ha d'indicar:
 
 - quin problema o oportunitat s'ha detectat;
 - quin resultat s'espera, sense prescriure encara tota la implementació;
 - estat de triatge;
 - dependències, riscos o decisions pendents rellevants;
-- enllaç a l'especificació, pull request, issue o ADR si finalment s'hi
-  incorpora.
-
-## Necessitats Incorporades
-
-### Segments De Ruta Localitzats
-
-**Estat:** Incorporada a la fase 2.
-
-**Problema:** actualment els slugs editorials es poden traduir, però els segments
-de domini de les URLs són fixos en anglès, com `/ca/schools/{slug}/` i
-`/ca/events/{slug}/`. Això produeix URLs parcialment localitzades.
-
-**Resultat esperat:** definir en codi els segments canònics per idioma i tipus de
-contingut, de manera que les rutes puguin ser, per exemple,
-`/ca/escoles/{slug}/`, `/es/escuelas/{slug}/` i
-`/en/schools/{slug}/`, mantenint els slugs editorials traduïbles.
-
-**Abans de planificar-ho cal definir:**
-
-- els segments canònics de cada domini i idioma, incloent-hi reserves i
-  col·lisions amb rutes tècniques o fixes;
-- la configuració tipada en codi que els representi, d'acord amb l'ADR 0004;
-- l'adaptació de les rutes estàtiques d'Astro, generació de URLs canòniques i
-  `hreflang`;
-- les proves de rutes, variants publicades i absència de col·lisions;
-- la política de redireccions si alguna URL ja publicada canvia.
-
-**Dependències:** decisió sobre els noms canònics i una fase que modifiqui la
-superfície pública de rutes.
-
-**Seguiment:** [especificació de la fase 2](specs/phase-2/phase-2-public-vertical-slice.md).
-
-Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
-registre del triatge; les rutes actuals viuen al contracte tipat de
-`apps/web/src/lib/content/routes.ts`.
-
-### Revisar La Informació De Berga Trail I La Marató De Muntanya De Berga
-
-**Estat:** Incorporada a la PR #65 (esdeveniments del Berguedà).
-
-**Problema:** cal revisar la informació publicada de Berga Trail i la seva
-relació amb la Marató de Muntanya de Berga per assegurar que la denominació,
-la història, les edicions, les distàncies i l'estat actual de l'esdeveniment són
-correctes i no barregen etapes diferents de la cursa.
-
-**Resultat esperat:** disposar d'una fitxa de Berga Trail contrastada amb fonts
-fiables i validada pel club, amb una explicació clara de la relació i l'evolució
-entre la Marató de Muntanya de Berga i Berga Trail.
-
-**Abans de planificar-ho cal definir:**
-
-- les fonts i les persones del club que poden validar la informació històrica;
-- la cronologia, els canvis de nom i les modalitats de cada edició;
-- quines dades i traduccions de la fitxa publicada s'han de corregir;
-- si cal recuperar fotografies, documents o enllaços històrics addicionals.
-
-**Dependències:** validació editorial del club i accés a fonts històriques
-fiables de l'esdeveniment.
-
-**Seguiment:** la fitxa publicada de Berga Trail, creada i fusionada a la PR
-#65, ja recull la cronologia, la relació amb la Marató de Muntanya de Berga, la
-creació de Les Clàssiques de Berga, les distàncies de l'edició registrada i
-l'estat actual de la cursa. Es conserva aquí com a registre del triatge; queda
-pendent només la validació formal del club sobre aquestes dades.
-
-### Revisió Dels Estils Globals I De Les Instruccions D'Ús De Tailwind
-
-**Estat:** Incorporada a la fase 4.
-
-> **Nota d'auditoria (15 d'agost de 2026):** el triatge d'aquesta entrada es
-> tanca: la revisió dels estils globals i de les instruccions es va completar
-> dins la fase 4 (PR #49 i l'actualització de `docs/code-conventions.md`).
-> `global.css` té 123 rengles, el CSS està distribuït per propietari i les
-> instruccions fixen les utilities de Tailwind com a primera opció. Si més
-> endavant apareixen duplicacions concretes, es capturarà una necessitat nova
-> amb aquell abast.
-
-**Problema:** els estils globals de l'aplicació
-(`apps/web/src/styles/global.css`) acumulen prop de dos milers de línies amb
-classes CSS pròpies (homepage, events-hub, schools, about, page, members...),
-mentre que Tailwind forma part de l'stack però gairebé no s'utilitza. A més, les
-instruccions que reben els agents per estilitzar no delimiten quan cal fer
-servir utilities de Tailwind i quan cal crear una classe CSS pròpia, cosa que
-afavoreix que el CSS global continuï creixent i que cada pàgina reprodueixi
-patrons semblants per separat.
-
-**Resultat esperat:** revisar els estils globals i les directrius d'estil per
-determinar quins estils es poden expressar amb utilities de Tailwind (amb
-`@theme` per als tokens) i quins han de continuar com a CSS propi, i actualitzar
-les instruccions als agents perquè l'ús de Tailwind sigui la norma, sense
-canviar la sortida visual actual.
-
-**Abans de planificar-ho cal definir:**
-
-- el criteri per decidir entre utilities de Tailwind i classes CSS pròpies:
-  composició de patrons repetits (kickers, marcs, seccions, enllaços d'acció),
-  estats, selectors o `clamp()` que les utilities no cobreixen, i si convé
-  `@apply` només per als patrons que es repeteixen de veritat;
-- la migració dels tokens actuals (`--color-*`, `--font-*`, `--space-*`,
-  `--page-width`, `--reading-width`) al `@theme` de Tailwind 4 i la
-  correspondència amb les utilities generades;
-- com es redueix el CSS global aprofitant les classes existents per detectar
-  patrons duplicats entre pàgines (events-hub i schools-hub, intro i seccions
-  editorials, about i fixed pages) sense alterar el resultat visual;
-- quines instruccions s'han d'actualitzar (`AGENTS.md`,
-  `docs/code-conventions.md` i els skills de la UI) i com es revisa el seu
-  compliment a les PR;
-- les comprovacions que garanteixin que el refactor no canvia la sortida:
-  regressió visual, selectors E2E existents i els llindars de Lighthouse.
-
-**Dependències:** revisió de les convencions i de les instruccions als agents,
-i una fase que toqui la capa de presentació de l'aplicació.
-
-**Seguiment:** coberta per la fase 4 (T4.4, PR #49).
-
-### Analítica Web Respectuosa Amb La Privacitat
-
-**Estat:** Incorporada com a entrega autònoma.
-
-**Problema:** després de publicar la nova web caldrà entendre quines pàgines i
-continguts són útils, sense introduir analítica publicitària ni un seguiment
-invasiu de les persones visitants.
-
-**Resultat esperat:** disposar de mètriques mínimes i accionables de la web
-pública mitjançant Plausible autoallotjat, mantenint-lo com un servei operatiu
-separat de la compilació estàtica.
-
-**Dependències:** web pública funcional, destí de producció definit i instància
-Plausible existent a `analytics.rogerbg.cat`.
-
-**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
-i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). L'entrega està
-tancada: T1 a la PR #90, T2 a la PR #96 i T3 a la PR #141.
-
-### Redirigir Les URLs De Llegat Amb Trànsit
-
-**Estat:** Incorporada com a entrega autònoma.
-
-**Problema:** hi ha visites a URLs de la web anterior del club (Joomla i
-WordPress) que ara acaben a la pàgina 404.
-
-**Resultat esperat:** una llista d'adreces antigues contrastada amb Plausible i
-redireccions HTTP permanents i explícites cap a la pàgina actual equivalent o,
-si no n'hi ha, la pàgina d'inici, sense redirigir indiscriminadament totes les
-rutes inexistents.
-
-**Decisions preses:**
-
-- període analitzat: tot l'històric disponible de Plausible
-  (`2026-08-19` → `2026-10-16`), amb el volum de cada adreça;
-- els paths absents del sitemap es classifiquen en contingut del club anterior,
-  spam injectat, sondes tècniques i un altre hostname; els tres primers grups es
-  redirigeixen a la pàgina equivalent o a `/ca/`;
-- codi HTTP 301 a Caddy, amb matchers tancats i la query string descartada;
-- les rutes actuals que arriben sense prefix d'idioma reben el prefix del
-  segment localitzat (ca, es o en), amb els segments compartits al català;
-- les rutes no incloses en cap prefix continuen responent 404;
-- verificació estàtica del Caddyfile i comprovació obligatòria de les
-  redireccions del host amb `verify-site`, també als smoke tests de
-  desplegament i reversió.
-
-**Dependències:** accés a les dades de Plausible i aplicació manual del canvi
-per una persona mantenidora, com la resta de canvis de Caddyfile.
-
-**Seguiment:** [especificació de redireccions de llegat](specs/legacy-url-redirects.md),
-T1, completada a les PRs #159 i #160 i aplicada al VPS.
-
-### Entrenaments Funcionals Per A Socis
-
-**Estat:** Autoritzada com a entrega autònoma.
-
-**Problema:** les persones sòcies necessiten trobar en un mateix lloc la
-informació bàsica del nou servei d'entrenaments funcionals i l'accés a les
-reserves.
-
-**Resultat esperat:** una secció de serveis per a socis i sòcies a la pàgina
-Socis que inclogui els entrenaments funcionals, expliqui l'activitat,
-l'exclusivitat per a socis, la ubicació, el preu vigent per sessió i com
-consultar les sessions disponibles a Playoff, i un punt genèric sobre els serveis
-i activitats a l'abast de les persones sòcies a «Forma part del club» de la pàgina
-d'inici.
-
-**Dependències:** confirmar que l'adreça institucional i la destinació de reserva
-continuen vigents abans de publicar la implementació. El preu per sessió
-confirmat (10 €) es publica; els horaris posteriors a l'octubre i les condicions
-de l'abonament mensual encara no estan definits i no s'han de presentar com a
-confirmats.
-
-**Seguiment:** [especificació del servei d'entrenaments per a
-socis](specs/member-services.md), tasca MS-01.
-
-### Desactivar L'Analítica En Mode Preview
-
-**Estat:** Incorporada a la [PR #141](https://github.com/rboixaderg/mountain-runners/pull/141) (entrega autònoma T3 d'analítica Plausible).
-
-**Problema:** les previews de pull request no són la web pública, però poden
-carregar l'analítica i enregistrar visites i accions de revisió com si fossin
-activitat real de producció. Això contamina les mètriques i no aporta valor a la
-revisió de contingut.
-
-**Resultat esperat:** garantir que Plausible no s'executa ni rep esdeveniments
-des de cap preview, mantenint l'analítica activa a producció i sense alterar la
-navegació o les comprovacions de les previews.
-
-**Resposta:** el criteri viu en un sol lloc, `analyticsEnabled`, derivat del
-contracte `PUBLIC_PREVIEW`. En un build de preview no hi ha script ni
-metadades d'analítica, ni atributs `data-analytics-*`; la CSP del fragment de
-previews de Caddy només permet `self` i el filtre de noms d'amfitrió de Plausible
-descarta la resta. A producció no canvia res: la sortida és idèntica a `main`.
-
-**Dependències:** contracte actual de `PUBLIC_PREVIEW`, integració Plausible
-([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) i infraestructura
-de previews de la fase 6.
-
-**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md),
-T3.
-
-### Revisar Els Enllaços Per A Agents I El Disseny De La Pàgina 404
-
-**Estat:** Incorporada a la
-[PR #161](https://github.com/rboixaderg/mountain-runners/pull/161).
-
-**Problema:** la pàgina 404 presentava els enllaços per a agents al mateix
-nivell que les opcions de recuperació de les persones visitants.
-
-**Resultat:** text que explica que la pàgina no existeix o ha canviat d'adreça,
-amb enllaços a l'inici i a l'agenda. L'espaiat i la tipografia utilitzen els
-tokens del sistema visual.
-
-**Decisió:** els enllaços a `/llms.txt` i `/sitemap.xml` es conserven al DOM
-dins d'un desplegable natiu «Recursos tècnics», tancat inicialment. Un agent
-que llegeixi l'HTML els pot descobrir directament; un agent que navegui per la
-interfície ha d'obrir el desplegable. No s'utilitza CSS per crear enllaços
-invisibles que puguin rebre focus.
-
-La 404 continua sent el document global en català. Els missatges equivalents
-es mantenen en castellà i anglès, sense crear rutes 404 noves.
-
-**Seguiment:** la prova de la 404 cobreix recuperació a l'agenda, desplegable
-amb teclat i accessibilitat del contingut obert en mòbil i escriptori.
-
-### Esdeveniments D'Acció I Temps D'Estada
-
-**Estat:** Incorporada i fusionada a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) (entrega autònoma T2 d'analítica Plausible).
-
-**Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
-baixades i formularis no expliquen quines accions de la web pública són útils
-(inscripció, alta de soci, butlletí, documents, navegació, selector d'idioma) ni
-quant de temps visible passen les persones visitants a cada pàgina o a la visita.
-Sense aquestes mètriques agregades el club no pot prioritzar contingut ni
-detectar recorreguts que acaben en una acció.
-
-**Resultat esperat:** emetre esdeveniments personalitzats agregats a Plausible
-per a les accions rellevants de la interfície i mesurar l'estona activa d'estada
-i la profunditat de scroll, amb llindars reproduïbles, sense cookies pròpies no
-tècniques, sense identificadors persistents i sense que una fallada de
-l'analítica trenqui la navegació. Els textos de privacitat i de cookies han de
-descriure aquests esdeveniments reals.
-
-**Abans de planificar-ho cal definir:**
-
-- el catàleg tancat d'esdeveniments i propietats (noms estables, àrea de la
-  pàgina, locale, ruta, tipus de pàgina) per a accions com la navegació de la
-  capçalera i el peu, el selector d'idioma, les inscripcions i informació
-  d'esdeveniments i escoles, l'alta de soci i la federació, el butlletí, els
-  documents i estatuts, els enllaços de contacte i xarxes, els col·laboradors i
-  els recorreguts del calendari;
-- el solapament entre els comptadors automàtics de clics sortints, baixades i
-  enviaments de formulari i els esdeveniments personalitzats, acceptat i
-  documentat a l'especificació: el comptador automàtic no aporta ni àrea de la
-  pàgina ni identitat de l'acció;
-- el mesurament del temps i de la profunditat: només temps visible (pausa amb la
-  pestanya oculta), llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i
-  llindars de scroll (50% i 90%), una vegada per llindar i càrrega de pàgina, i
-  si cal una agregació de l'estona total de la visita sense emmagatzemar
-  identificadors persistents;
-- el contracte de privacitat: etiquetes sanititzades i truncades, cap adreça de
-  correu, telèfon, query string ni text lliure que pugui identificar una
-  persona; propietats només agregables;
-- com s'executa el client a un lloc estàtic multipàgina: script servit per
-  `'self'`, sense `unsafe-inline` a `script-src`, i reinici del temps a cada
-  càrrega de pàgina;
-- l'actualització de privacitat i cookies en ca/es/en, i si cal ampliar l'ADR
-  0007 o l'especificació d'analítica ja acceptada;
-- les comprovacions: el catàleg d'esdeveniments està cobert per proves, el
-  recorregut E2E continua funcionant amb l'origen de Plausible bloquejat i no es
-  canvien rutes, contingut editorial ni selectors E2E existents.
-
-**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
-(T2). Fusionada amb squash a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96)
-(`cb842f5`); la branca `feat/analytics-events` ja s'ha retirat.
-
-### Observabilitat De Totes Les Peticions A L'Origen
-
-**Estat:** Incorporada com a entrega autònoma.
-
-**Problema:** Plausible depèn de JavaScript i exclou trànsit automatitzat
-conegut, de manera que no permet saber quines peticions HTTP rep realment el
-servidor ni quins crawlers s'hi identifiquen.
-
-**Resultat esperat:** conservar el registre individual minimitzat durant set
-dies, classificar transitòriament el `User-Agent` sense desar-lo i generar resums
-agregats persistents de les peticions rebudes. La consulta permet comparar les
-peticions a pàgines amb els pageviews de Plausible, mantenint les fonts separades.
-Els resums no contenen IP ni identificadors, treuen les dimensions dels recomptes
-escassos i es conserven sense termini màxim.
-
-**Dependències:** Caddy i la rotació diària existents, revisió de seguretat i
-privacitat i activació remota supervisada.
-
-**Seguiment:** [especificació d'observabilitat de
-peticions](specs/request-observability.md) i [ADR
-0008](decisions/0008-request-observability.md).
-
-### Entrada Sense Idioma Més Ràpida
-
-**Estat:** Incorporada com a entrega autònoma.
-
-**Problema:** quan una persona visita l'origen sense prefix d'idioma (per
-exemple `https://mountainrunners.cat/`), la web redirigeix al català
-(`/ca/`). Avui aquesta resposta es percep lenta: l'arrel emet un document
-mínim amb `meta refresh` cap a `/ca/` en lloc de servir ja el contingut
-català o una redirecció HTTP immediata. Això afegeix un salt perceptible
-abans de veure la pàgina d'inici.
-
-**Resultat esperat:** analitzar i triar una estratègia perquè l'entrada sense
-idioma mostri el català amb menys latència —servir el català per defecte a
-l'arrel, una redirecció HTTP ràpida a la vora o al servidor, o una altra
-opció compatible amb el contracte d'i18n— sense perdre URLs canòniques,
-`hreflang`, SEO ni el selector d'idioma.
-
-**Abans de planificar-ho cal definir:**
-
-- la causa mesurable de la lentitud (document intermedi amb `meta refresh`,
-  cadena de redireccions Astro/`redirectToDefaultLocale`, o latència de
-  xarxa) i un criteri d'èxit (temps fins al primer contingut útil);
-- si es pot servir el català a `/` sense prefix, mantenint `/ca/`, `/es/` i
-  `/en/` com a rutes publicades, o si cal conservar sempre el prefix i només
-  accelerar la redirecció (HTTP 301/302 a Caddy o a l'artefacte);
-- l'impacte sobre `prefixDefaultLocale`, canòniques, `hreflang`, sitemap,
-  robots i proves que avui exigeixen que l'arrel redirigeixi a `/ca/`;
-- la coherència amb l'entrada de declaració de rutes per idioma i amb el
-  contracte tipat de rutes;
-- les comprovacions de regressió: arrel, variants localitzades, E2E del shell
-  i matriu de rutes.
-
-**Dependències:** configuració i18n d'Astro (`prefixDefaultLocale` i
-`redirectToDefaultLocale`), pàgina arrel i, si s'opta per redirecció al
-servidor, el `Caddyfile` de producció.
-
-**Seguiment:** la causa és el `200` de l'arrel que serveix l'`index.html` amb
-`meta refresh` al cap de 2 segons; una mesura des de desenvolupament el 21
-d'agost de 2026 va registrar, a més, 225 ms fins al primer byte d'aquest
-document intermedi. La
-[PR #95](https://github.com/rboixaderg/mountain-runners/pull/95) incorpora una
-redirecció HTTP permanent i exacta de `/` a `/ca/` a Caddy, la comprovació del
-contracte viu i les instruccions d'activació. El criteri d'èxit és que l'arrel
-respongui directament amb `301` o `308` i `Location: /ca/`, sense servir el
-document intermedi.
-
-### Avaluar Notícies, Blog I Estructures Editorials Reutilitzables
-
-**Estat:** Incorporada a la
-[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140).
-
-**Problema:** la web no tenia un espai per publicar notícies del club ni articles
-editorials de format blog. Sense una estructura compartida, aquests continguts
-podrien variar de format i requerir més feina manual per preparar-los i
-publicar-los.
-
-**Resultat esperat:** decidir si convé crear apartats de notícies i de blog i,
-si escau, definir estructures editorials via skills o plantilles que permetin
-crear continguts amb un format consistent i agilitzin la seva preparació.
-
-**Abans de planificar-ho cal definir:**
-
-- la diferència d'ús entre notícies i articles de blog, i si necessiten apartats,
-  pàgines de detall o fluxos de publicació diferenciats;
-- quins camps, seccions i recursos són comuns i quins varien entre els dos tipus
-  de contingut, incloent-hi autoria, dates, imatges i enllaços relacionats;
-- com es mantenen una estructura i uns criteris editorials consistents sense
-  restringir innecessàriament la varietat dels continguts;
-- si les estructures reutilitzables han de ser skills, plantilles editorials o
-  totes dues, on viurien i qui les mantindria;
-- l'encaix amb el model de contingut i la publicació multilingüe actuals, la
-  navegació i el sistema visual del lloc;
-- qui proposa, revisa i valida els continguts, i quines comprovacions de qualitat
-  editorial, accessibilitat i publicació caldrien.
-
-**Dependències:** validar la necessitat editorial amb el club i revisar el
-contracte actual de contingut, les eines editorials disponibles i les
-convencions de skills del repositori.
-
-**Seguiment:** [especificació de notícies i blog](specs/news-and-blog.md), autoritzada el 2
-d'octubre de 2026. L'[ADR 0011](decisions/0011-news-blog-editorial-previews.md)
-registra l'excepció de preview. L'entrega es va fusionar a la PR #140 el 8
-d'octubre de 2026; els pendents editorials i de revisió humana es mantenen a
-l'especificació.
-
-### Separar La Presentació Del Contacte I Simplificar Les Validacions
-
-**Estat:** Incorporada a la
-[PR #70](https://github.com/rboixaderg/mountain-runners/pull/70).
-
-**Problema:** el contingut de contacte desa informació pròpia del render HTML,
-com els protocols `mailto:` i `tel:`, en lloc de representar només les dades
-editorials. Això barreja el model de contingut amb la responsabilitat de la
-interfície. A més, el model actual aplica més validacions de les necessàries en
-alguns camps, cosa que pot fer que el catàleg estigui sobrevalidat i sigui més
-difícil d'editar sense aportar una garantia real per a la sortida publicada.
-
-**Resultat esperat:** modificar el model i el render del contacte perquè les
-dades emmagatzemin valors semàntics i el component construeixi els atributs i
-protocols HTML necessaris. Revisar les validacions del contingut i conservar
-només les que siguin necessàries per al contracte editorial, la seguretat o la
-correctesa de la sortida. Documentar aquesta regla com a convenció de codi:
-validar a la frontera corresponent, sense duplicar ni anticipar al model de
-dades restriccions que pertanyen al render.
-
-**Abans de planificar-ho cal definir:**
-
-- la representació canònica de correus i telèfons al contingut i la forma
-  segura de convertir-la en `href` i text visible;
-- quines validacions del contacte i dels primitives de contingut són garanties
-  necessàries i quines només repliquen decisions de presentació;
-- la compatibilitat amb les dades publicades, les traduccions i els selectors o
-  contractes de proves existents;
-- l'actualització de `docs/code-conventions.md` i, si escau, de les instruccions
-  resumides a `AGENTS.md`;
-- les proves de model, render i seguretat que demostrin que es manté la sortida
-  correcta sense conservar validacions redundants.
-
-**Dependències:** revisió del model de contingut de contacte i dels components
-que el renderitzen; no cal canviar cap frontera arquitectònica acceptada si la
-separació es manté dins del model i la capa de presentació existents.
-
-**Seguiment:** [PR #70](https://github.com/rboixaderg/mountain-runners/pull/70),
-fusionada; la regla de validar a la frontera viu a
-[`docs/code-conventions.md`](code-conventions.md).
+- enllaç a l'issue si en té.
 
 ## Necessitats Obertes
-
-### Sincronitzar La Branca Abans Del Merge
-
-**Estat:** Especificada a
-[Sincronització de la branca abans del merge](specs/agent-sync-before-merge.md).
 
 ### Lectura De PDF Per L'Agent Privat
 
@@ -804,63 +363,6 @@ localitzades, inclosa l'entrada de segments de ruta localitzats.
 
 **Seguiment:** pendent de triatge.
 
-### Demanar La Preview Amb Una Etiqueta De La PR
-
-**Estat:** Implementació fusionada a `main` (#268).
-
-**Seguiment:** [especificació de l'etiqueta de preview](specs/preview-label.md)
-i [issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
-
-### Retirar La Petició De Preview Amb `/preview`
-
-**Estat:** Implementació fusionada a `main` (#277 i #279). La coexistència del
-comentari i l'etiqueta duplicava l'autorització. Les comprovacions pendents són
-a [l'especificació de la retirada de `/preview`](specs/retire-preview-command.md).
-
-### Govern De La Documentació I De Les Skills
-
-**Estat:** Completada a [Govern de la documentació i de les
-skills](specs/docs-governance.md) el 22 de novembre de 2026.
-
-**Problema:** cada agent afegeix el comportament nou al document més proper, de manera
-que el comportament de l'agent privat es descriu a quatre llocs,
-els documents operatius de desplegament i runbook se solapen, els documents de treball d'una
-tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni versió.
-
-**Resultat esperat:** un únic document propietari per tipus de contingut, l'operació
-organitzada per component, una actualització de l'agent versionada i una comprovació
-automàtica que impedeixi que la documentació torni a divergir.
-
-**Seguiment:** onze tasques fusionades en set PR i la correcció
-[#296](https://github.com/rboixaderg/mountain-runners/pull/296), l'última la
-[#295](https://github.com/rboixaderg/mountain-runners/pull/295).
-
-### Fusionar Quan La Persona Dona La Feina Per Validada
-
-**Estat:** Especificada a [Confirmació del merge amb una pregunta i una
-resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb
-l'esmena acceptada de l'ADR 0013.
-
-**Problema:** avui el servei només fusiona una PR amb l'ordre literal `/merge`
-d'una persona verificada del grup. Les persones del club no l'escriuran mai: el
-que fan és dir al tema que la feina està acabada i validada.
-
-**Resultat esperat:** una validació explícita d'una persona verificada en resposta
-a l'avís vigent de preview confirmada provoca només una pregunta fixa; només la
-resposta «Sí, a producció» d'aquella persona a aquella pregunta autoritza el
-merge del commit anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
-ja demana que l'avís de preview confirmat fixi el SHA per a la fusió; avui el fixa
-el seguiment de CI. Es mantenen la decisió humana, la pertinença verificada, les
-comprovacions requerides en verd, l'absència d'auto-merge i que mai es fusiona per
-iniciativa pròpia.
-
-**Dependències i riscos:** esmena de l'ADR 0013 (forma contextual en dos passos i
-fixació del SHA a la preview); alineació de la documentació operativa i de les
-instruccions d'agents abans d'activar; [especificació de l'etiqueta de
-preview](specs/preview-label.md).
-
-**Seguiment:** T1 fusionada (PR #294); T2 en curs.
-
 ### Butlletí I Analítica Del Club
 
 **Estat:** Capturada.
@@ -875,3 +377,29 @@ la instància existent. Abans d'activar res cal especificar privacitat, accessos
 còpies, actualitzacions i reversió.
 
 **Seguiment:** pendent de triatge.
+
+## Necessitats Incorporades
+
+Les entrades ja especificades o fusionades no dupliquen el detall aquí; el
+seguiment i l'acceptació viuen al document propietari o a la pull request.
+
+| Necessitat                                                            | Seguiment                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Segments de ruta localitzats                                          | [Especificació de la fase 2](specs/phase-2/phase-2-public-vertical-slice.md), T2.3                                              |
+| Revisar la informació de Berga Trail i la Marató de Muntanya de Berga | [PR #65](https://github.com/rboixaderg/mountain-runners/pull/65), pendent de validació històrica formal del club                |
+| Revisió dels estils globals i de les instruccions d'ús de Tailwind    | [Especificació de la fase 4](specs/phase-4/phase-4-design-content-validation.md) i [`code-conventions.md`](code-conventions.md) |
+| Separar la presentació del contacte i simplificar les validacions     | [PR #70](https://github.com/rboixaderg/mountain-runners/pull/70) i [`code-conventions.md`](code-conventions.md)                 |
+| Analítica web respectuosa amb la privacitat                           | [`specs/plausible-analytics.md`](specs/plausible-analytics.md) i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)  |
+| Entrada sense idioma més ràpida                                       | [PR #95](https://github.com/rboixaderg/mountain-runners/pull/95)                                                                |
+| Esdeveniments d'acció i temps d'estada                                | [`specs/plausible-analytics.md`](specs/plausible-analytics.md), T2                                                              |
+| Avaluar notícies, blog i estructures editorials reutilitzables        | [`specs/news-and-blog.md`](specs/news-and-blog.md) i [ADR 0011](decisions/0011-news-blog-editorial-previews.md)                 |
+| Desactivar l'analítica en mode preview                                | [`specs/plausible-analytics.md`](specs/plausible-analytics.md), T3                                                              |
+| Redirigir les URLs de llegat amb trànsit                              | [`specs/legacy-url-redirects.md`](specs/legacy-url-redirects.md)                                                                |
+| Revisar els enllaços per a agents i el disseny de la pàgina 404       | [PR #161](https://github.com/rboixaderg/mountain-runners/pull/161) i [`architecture.md`](architecture.md)                       |
+| Entrenaments funcionals per a socis                                   | [`specs/member-services.md`](specs/member-services.md)                                                                          |
+| Observabilitat de totes les peticions a l'origen                      | [`specs/request-observability.md`](specs/request-observability.md) i [ADR 0008](decisions/0008-request-observability.md)        |
+| Demanar la preview amb una etiqueta de la PR                          | [`specs/preview-label.md`](specs/preview-label.md)                                                                              |
+| Retirar la petició de preview amb `/preview`                          | [`specs/retire-preview-command.md`](specs/retire-preview-command.md)                                                            |
+| Govern de la documentació i de les skills                             | [`specs/docs-governance.md`](specs/docs-governance.md)                                                                          |
+| Fusionar quan la persona dona la feina per validada                   | [`specs/preview-merge-confirmation.md`](specs/preview-merge-confirmation.md)                                                    |
+| Sincronitzar la branca abans del merge                                | [`specs/agent-sync-before-merge.md`](specs/agent-sync-before-merge.md)                                                          |

@@ -17,6 +17,7 @@ import {
 const SKILLS_DIRECTORY = ".agents/skills";
 const SKILLS_MANIFEST = `${SKILLS_DIRECTORY}/skills-manifest.json`;
 const DOCS_MAP_ROOT = "docs/README.md";
+const DIRECT_MAP_INDEXED = /^docs\/(?:decisions|specs)\/[^/]+\.md$/u;
 const LIVING_DOC_ROOTS = ["docs/", "tools/", "packages/"];
 const LIVING_DOC_EXCLUSIONS = ["docs/decisions/", "docs/specs/"];
 const TASK_IDENTIFIER = /\bT\d+\.\d+\b/u;
@@ -382,8 +383,10 @@ function checkDocumentationMap({
 }) {
   const documentationFiles = files.filter((file) => file.startsWith("docs/"));
   const reached = new Set();
+  const directTargets = new Set();
   const queue = [];
-  const reach = (file) => {
+  const reach = (file, fromMapRoot = false) => {
+    if (fromMapRoot) directTargets.add(file);
     if (reached.has(file)) return;
     reached.add(file);
     if (file.endsWith(".md") && fileSet.has(file)) queue.push(file);
@@ -395,6 +398,7 @@ function checkDocumentationMap({
 
   while (queue.length > 0) {
     const file = queue.shift();
+    const fromMapRoot = file === DOCS_MAP_ROOT;
     const masked = maskCode(readFileSync(join(root, file), "utf8"));
     for (const { destination } of extractLinks(masked)) {
       if (!isLocalDestination(destination)) continue;
@@ -403,21 +407,30 @@ function checkDocumentationMap({
 
       const target = resolveTarget(file, targetPath);
       if (!fileSet.has(target) && !directorySet.has(target)) continue;
-      reach(target);
+      reach(target, fromMapRoot);
       if (directorySet.has(target)) {
         const readme = posix.join(target, "README.md");
-        if (fileSet.has(readme)) reach(readme);
+        if (fileSet.has(readme)) reach(readme, fromMapRoot);
       }
     }
   }
 
   for (const file of documentationFiles) {
-    if (reached.has(file)) continue;
-    findings.push({
-      path: file,
-      line: 1,
-      message: `is not reachable from ${DOCS_MAP_ROOT} by following relative links`,
-    });
+    if (!reached.has(file)) {
+      findings.push({
+        path: file,
+        line: 1,
+        message: `is not reachable from ${DOCS_MAP_ROOT} by following relative links`,
+      });
+      continue;
+    }
+    if (DIRECT_MAP_INDEXED.test(file) && !directTargets.has(file)) {
+      findings.push({
+        path: file,
+        line: 1,
+        message: `is not linked directly from ${DOCS_MAP_ROOT}`,
+      });
+    }
   }
 }
 

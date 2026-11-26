@@ -46,42 +46,67 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
     instal·lació al VPS.
   - [`operations/agent.md`](operations/agent.md): instal·lació, configuració,
     actualització, còpies, traça i validació de l'agent privat de Telegram.
-- [`phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md):
-  inventari públic dels registres a preservar i a substituir al tall.
 - [`ai-assistant.md`](ai-assistant.md): futur xat públic, agent privat de
   Telegram i agents locals.
 - [`decisions/`](decisions/): decisions arquitectòniques acceptades.
   - [`0001`](decisions/0001-static-site-and-content-in-git.md): web estàtica i
     contingut a Git.
+  - [`0002`](decisions/0002-public-chat-and-private-editor.md): xat públic i
+    assistent editorial privat separats.
+  - [`0003`](decisions/0003-agent-workflow-and-security.md): flux d'agents,
+    worktrees i controls de seguretat.
   - [`0004`](decisions/0004-code-and-editorial-content-boundary.md): límit entre
     codi i contingut editorial.
   - [`0005`](decisions/0005-fixed-page-copy-in-translation-resources.md): textos
     de pàgines fixes als recursos de traducció.
+  - [`0006`](decisions/0006-presentation-layer-structure.md): estructura de
+    capes de presentació i pàgines primes.
+  - [`0007`](decisions/0007-self-hosted-plausible-analytics.md): analítica
+    autoallotjada amb Plausible.
+  - [`0008`](decisions/0008-request-observability.md): observabilitat de
+    peticions a l'origen.
+  - [`0009`](decisions/0009-pr-previews-same-domain-and-own-branches.md):
+    previews de PR al mateix domini registrable i només branques pròpies.
   - [`0010`](decisions/0010-preview-caddy-acme-isolation.md): frontera de Caddy i
     emmagatzematge ACME dels previews.
-- [`specs/`](specs/): requisits i acceptació de les funcionalitats.
+  - [`0011`](decisions/0011-news-blog-editorial-previews.md): esborranys de
+    notícies i blog en previews editorials.
+  - [`0012`](decisions/0012-local-fast-checks.md): comprovacions locals ràpides i
+    CI com a autoritat.
+  - [`0013`](decisions/0013-private-development-agent-boundary.md): frontera de
+    l'agent privat de desenvolupament.
+  - [`0014`](decisions/0014-operator-stop-and-repeatable-telegram-notices.md):
+    aturada per l'operador i avisos de Telegram repetibles.
+- [`specs/`](specs/README.md): convenció d'especificacions, llindar d'ús i
+  requisits d'acceptació.
   - [`agent-audit-remediation.md`](specs/agent-audit-remediation.md): correccions
     de seguretat i errors, i simplificació de l'agent privat.
   - [`agent-sync-before-merge.md`](specs/agent-sync-before-merge.md):
     sincronització de la branca i nova revisió de la preview abans del merge.
   - [`docs-governance.md`](specs/docs-governance.md): govern de la documentació i
     de les skills.
+  - [`legacy-url-redirects.md`](specs/legacy-url-redirects.md): redireccions
+    permanents d'URLs de llegat amb trànsit.
   - [`member-services.md`](specs/member-services.md): serveis per a socis amb
     entrenaments funcionals.
+  - [`news-and-blog.md`](specs/news-and-blog.md): requisits i seguiment de
+    notícies, blog i esborranys editorials en preview.
+  - [`plausible-analytics.md`](specs/plausible-analytics.md): analítica web amb
+    Plausible, esdeveniments i exclusió en preview.
+  - [`preview-label.md`](specs/preview-label.md): petició de preview amb
+    l'etiqueta `preview` de la PR.
   - [`preview-merge-confirmation.md`](specs/preview-merge-confirmation.md):
     confirmació del merge amb una pregunta i una resposta.
   - [`request-observability.md`](specs/request-observability.md): observabilitat
     de totes les peticions a l'origen.
-  - [`phase-6-t64-local.md`](specs/phase-6/phase-6-t64-local.md): registre local
-    del cicle de vida dels previews.
+  - [`retire-preview-command.md`](specs/retire-preview-command.md): retirada de
+    la petició de preview amb `/preview`.
 - `specs/phase-N/`: la carpeta de cada fase amb la seva especificació i els
   documents de treball: [`phase-1/`](specs/phase-1/),
   [`phase-2/`](specs/phase-2/), [`phase-3/`](specs/phase-3/),
   [`phase-4/`](specs/phase-4/), [`phase-5/`](specs/phase-5/),
   [`phase-6/`](specs/phase-6/) i [`phase-8/`](specs/phase-8/). La fase 7 encara
   no té especificació.
-- [`specs/news-and-blog.md`](specs/news-and-blog.md): requisits i seguiment de
-  notícies, blog i esborranys editorials en preview.
 - [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
   signatura, actualització i aprovació humana. Inclou les dues plantilles.
 - [`skills.md`](skills.md): registre de les skills externes i pròpies, amb
@@ -100,6 +125,10 @@ descriuen necessàriament l'estat actual:
 - [`phase-2-editorial-inventory.md`](specs/phase-2/phase-2-editorial-inventory.md) i
   [`phase-3-editorial-inventory.md`](specs/phase-3/phase-3-editorial-inventory.md): inventaris i
   aprovacions disponibles en cada fase.
+- [`phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md):
+  inventari públic dels registres DNS a preservar i a substituir al tall.
+- [`phase-6-t64-local.md`](specs/phase-6/phase-6-t64-local.md): registre local
+  del cicle de vida dels previews abans de l'activació al VPS.
 - Els documents de validació de cada fase dins de `specs/phase-N/`, com
   [`phase-4-design-review.md`](specs/phase-4/phase-4-design-review.md): evidència
   de revisions executades i punts de tancament, no substitut de l'especificació.

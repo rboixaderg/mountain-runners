@@ -2,14 +2,14 @@
 
 ## Propòsit
 
-Cada fase, funcionalitat o tasca amb abast implementable té una especificació a
-`docs/specs/`. L'especificació és la font de veritat del seu objectiu, límits,
-entregues i acceptació; la checklist executiva i l'evidència de validació viuen
-a la draft PR.
+Les fases, les funcionalitats noves i les entregues amb canvis de comportament o
+de model tenen una especificació a `docs/specs/`. L'especificació és la font de
+veritat del seu objectiu, límits, entregues i acceptació; la checklist executiva
+i l'evidència de validació viuen a la pull request.
 
 L'especificació d'una fase viu a `docs/specs/phase-N/` amb els documents de
-treball d'aquella fase; les especificacions de funcionalitat viuen directament a
-`docs/specs/`.
+treball d'aquella fase; les especificacions autònomes de funcionalitat o
+programa viuen directament a `docs/specs/`.
 
 La skill portable [spec-authoring](../../.agents/skills/spec-authoring/SKILL.md)
 aplica aquesta convenció en crear o revisar una especificació.
@@ -17,6 +17,27 @@ aplica aquesta convenció en crear o revisar una especificació.
 Les especificacions són documents públics i s'escriuen en català. No han de
 contenir secrets, dades personals no publicables, textos heretats sense revisar
 ni instruccions de desplegament no aprovades.
+
+## Quan Cal Especificació
+
+Requereixen especificació a `docs/specs/`:
+
+- les fases del roadmap;
+- les funcionalitats noves o els canvis observables de comportament públic,
+  d'esquemes de contingut o d'operació;
+- els programes de correcció o refactorització repartits en diverses entregues.
+
+No requereixen especificació i s'entreguen directament en una pull request
+acotada amb evidència de validació:
+
+- les entrades i actualitzacions editorials dins del model vigent, governades
+  per [`docs/editorial/guide.md`](../editorial/guide.md);
+- les correccions d'errors que restauren un comportament ja especificat o
+  documentat;
+- les reconciliacions documentals, correccions d'enllaços o neteges que no
+  canvien cap frontera ni comportament;
+- les actualitzacions rutinàries de dependències o de skills fixades que
+  mantenen el comportament existent.
 
 ## Estructura Obligatòria
 
@@ -70,10 +91,16 @@ no amplia silenciosament una tasca activa.
   fusionada.
 - Cada draft PR enllaça l'especificació, identifica criteris coberts, registra
   comprovacions i evidencia els impactes aplicables.
-- El títol de cada draft PR identifica la unitat de l'especificació amb el format
-  `type(phase-N-tN.M): resum breu`, usant els identificadors exactes de fase i
-  tasca. Una PR que només defineix o modifica una especificació de fase utilitza
-  `docs(specs-phase-N): resum breu`.
+- El títol de cada pull request identifica una única unitat de treball:
+  - Tasca d'una fase (`TN.M`): `type(phase-N-tN.M): resum breu`.
+  - Tasca d'una especificació autònoma (`TM`): `type(<spec>-tM): resum breu`, on
+    `<spec>` és el nom del fitxer sense `.md` o el prefix curt declarat a la
+    mateixa especificació. Quan l'especificació agrupa tasques en una sola PR,
+    l'abast n'indica el rang, com `t1-t5`.
+  - Creació o edició només d'una especificació: `docs(specs-phase-N): resum breu`
+    o `docs(specs-<spec>): resum breu`.
+  - Canvis que [no requereixen especificació](#quan-cal-especificació):
+    `type(scope): resum breu`, on `scope` nomena l'àrea afectada.
 - Una decisió que canviï una frontera acceptada requereix primer un ADR. Una
   necessitat no prevista s'afegeix al backlog o crea una especificació pròpia;
   no amplia silenciosament una PR activa.

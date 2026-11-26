@@ -6,7 +6,7 @@ Les esmenes als [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-bra
 i [0013](../decisions/0013-private-development-agent-boundary.md) es van aprovar
 a la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273). La retirada
 del disparador (T1) i del codi antic de l'agent (T2) s'han fusionat. L'entrega
-correspon a l'[entrada del backlog](../backlog.md#retirar-la-petició-de-preview-amb-preview).
+correspon a l'[entrada del backlog](../backlog.md#necessitats-incorporades).
 No hi ha evidència registrada de la [verificació a GitHub](#verificació-a-github)
 ni de la retirada d'`issue_comment` de la política remota d'Actions.
 
