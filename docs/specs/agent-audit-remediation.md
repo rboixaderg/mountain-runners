@@ -121,7 +121,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T25   | Completada | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | [#315](https://github.com/rboixaderg/mountain-runners/pull/315) |
 | T26   | Completada | T25           | Decisions de l'esmena implementades                                      | PR 26   | [#322](https://github.com/rboixaderg/mountain-runners/pull/322) |
 | T27   | Completada | T18, T26      | Una sola base de dades amb una fila per commit publicat                  | PR 27   | [#341](https://github.com/rboixaderg/mountain-runners/pull/341) |
-| T28   | Pendent    | La majoria    | Documentació de l'agent curta, amb la regla detallada al costat del codi | PR 28   | -                                                               |
+| T28   | En curs    | La majoria    | Documentació de l'agent curta, amb la regla detallada al costat del codi | PR 28   | -                                                               |
 
 L’orquestrador actualitza `Estat` i `PR` quan s’obre una PR (`En curs` amb l’enllaç) i quan es fusiona (`Completada`).
 
@@ -714,8 +714,11 @@ línies) amb un diagrama i una taula d'estats; les regles detallades viuen amb e
 codi que descriuen; el document d'operació conserva instal·lació,
 actualització, retrocés, còpies, reconciliació i incidents (els registres del
 pilot passen a l'especificació de la fase); l'ADR 0013 rep un resum «Decisió
-vigent» al capdamunt; es decideix si `docs/phase-8-system-map.html` es genera o
-s'elimina.
+vigent» al capdamunt, sense reescriure'n l'historial.
+
+**Decisió de la persona mantenidora (26 de novembre de 2026):** es conserva i
+s'actualitza el [mapa HTML de la fase 8](../phase-8-system-map.html). El mapa es
+manté a mà i enllaça les fonts vigents.
 
 **Exclusió immediata:** no canvia comportament.
 

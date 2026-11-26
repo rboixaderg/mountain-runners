@@ -23,9 +23,9 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
 
 - [`architecture.md`](architecture.md): implementació actual i direcció
   arquitectònica acceptada.
-- [`phase-8-system-map.html`](phase-8-system-map.html): mapa visual de la fase 8,
-  peces i fluxos de T8.3 i validació real pendent. HTML autònom per obrir al
-  navegador; no substitueix l'especificació ni els ADR.
+- [`phase-8-system-map.html`](phase-8-system-map.html): mapa visual dels
+  components de l'agent privat, amb enllaços a les fonts vigents. HTML autònom
+  per obrir al navegador.
 - [`content-model.md`](content-model.md): contracte editorial i de publicació.
 - [`code-conventions.md`](code-conventions.md): normes d'implementació de
   `apps/web`.
