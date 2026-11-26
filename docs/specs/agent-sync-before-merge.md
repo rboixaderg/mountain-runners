@@ -2,11 +2,19 @@
 
 ## Estat
 
-Pendent d'implementació i revisió. Aquesta especificació concreta la
-sincronització abans del merge prevista a
-[T8.9](phase-8/phase-8-editorial-assistance.md) i la relaciona amb la
-[confirmació de la preview](preview-merge-confirmation.md). No activa permisos,
-no modifica la configuració remota i no autoritza cap merge ni desplegament.
+Implementació fusionada a la [PR #307](https://github.com/rboixaderg/mountain-runners/pull/307),
+amb correccions a les PR [#311](https://github.com/rboixaderg/mountain-runners/pull/311),
+[#312](https://github.com/rboixaderg/mountain-runners/pull/312) i
+[#326](https://github.com/rboixaderg/mountain-runners/pull/326). Aquesta entrega
+concreta la sincronització prevista a [T8.9](phase-8/phase-8-editorial-assistance.md)
+i la relaciona amb la
+[confirmació de la preview](preview-merge-confirmation.md). La validació amb
+GitHub i Telegram simulats no acredita els controls reals de merge de T8.6.
+
+Els casos de sincronització en torns de reparació automàtica de CI es conserven
+com a registre. La [T26 de l'auditoria](agent-audit-remediation.md#t26-aplicar-lesmena)
+va retirar aquests torns. La [T10 de l'auditoria](agent-audit-remediation.md#t10-feina-local-i-conflictes-de-la-branca-del-tema)
+va corregir els bucles de sincronització que deixaven feina local pendent.
 
 ## Objectiu
 
@@ -64,9 +72,9 @@ comprovacions locals bloquegin la publicació per una base antiga.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències                         | Resultat verificable                                           | PR  |
-| ----- | ------- | ------------------------------------ | -------------------------------------------------------------- | --- |
-| T1    | Pendent | T8.9 i fixació del SHA de la preview | Sincronització abans del gate i del merge, i nova autorització | -   |
+| Tasca | Estat      | Dependències                         | Resultat verificable                                           | PR                                                              |
+| ----- | ---------- | ------------------------------------ | -------------------------------------------------------------- | --------------------------------------------------------------- |
+| T1    | Completada | T8.9 i fixació del SHA de la preview | Sincronització abans del gate i del merge, i nova autorització | [#307](https://github.com/rboixaderg/mountain-runners/pull/307) |
 
 ### T1: Sincronització I Nova Autorització
 

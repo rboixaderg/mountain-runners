@@ -260,8 +260,8 @@
       </p>
       <p class="meta">
         Verificat contra el codi del commit
-        <a href="https://github.com/rboixaderg/mountain-runners/commit/4a6d668e"
-          ><code>4a6d668e</code></a
+        <a href="https://github.com/rboixaderg/mountain-runners/commit/e0e3004b"
+          ><code>e0e3004b</code></a
         >. Fitxer estàtic, sense JavaScript ni recursos externs.
       </p>
       <div class="notice">
@@ -282,9 +282,10 @@
       <section id="components" aria-labelledby="components-title">
         <h2 id="components-title">Components i fronteres</h2>
         <p>
-          El pont rep la petició de Telegram i la passa al flux de treball. Pi
-          consulta el model; les ordres sobre la còpia de treball s'executen al
-          sandbox. El servei de confiança gestiona GitHub.
+          El pont rep la petició de Telegram i la passa al flux de treball. El
+          procés local de Pi consulta l'API del proveïdor extern del model. Les
+          ordres sobre la còpia de treball s'executen al sandbox. El servei de
+          confiança gestiona GitHub.
         </p>
         <figure>
           <div
@@ -301,11 +302,12 @@
             >
               <desc id="components-diagram-description">
                 El grup de Telegram envia instruccions al pont. El pont les
-                passa al flux de treball. El repositori publica a GitHub. Pi
-                envia les ordres del model al sandbox; el flux de treball hi
-                envia directament la preparació i les comprovacions. El
-                repositori i el runtime de Pi són dins la zona de confiança del
-                servei; el sandbox queda fora.
+                passa al flux de treball. El repositori publica a GitHub. El
+                procés local de Pi consulta el proveïdor extern del model i
+                envia les ordres al sandbox. El flux de treball hi envia
+                directament la preparació i les comprovacions. El repositori i
+                el procés de Pi són dins la zona de confiança del servei. El
+                proveïdor del model i el sandbox queden fora.
               </desc>
               <defs>
                 <marker
@@ -342,11 +344,14 @@
               <text class="label" x="760" y="96">Repositori</text>
               <text class="small" x="760" y="121">Git, publicador, estat</text>
               <rect class="node" x="740" y="210" width="200" height="80" />
-              <text class="label" x="760" y="246">Runtime de Pi</text>
-              <text class="small" x="760" y="271">runtime/ i model</text>
+              <text class="label" x="760" y="246">Pi local</text>
+              <text class="small" x="760" y="271">procés i adaptador</text>
               <rect class="node" x="1010" y="60" width="180" height="80" />
               <text class="label" x="1030" y="96">GitHub</text>
               <text class="small" x="1030" y="121">branca, PR, CI, merge</text>
+              <rect class="node" x="1010" y="210" width="200" height="80" />
+              <text class="label" x="1030" y="246">Proveïdor extern</text>
+              <text class="small" x="1030" y="271">API del model</text>
               <rect class="node" x="740" y="340" width="200" height="60" />
               <text class="label" x="760" y="376">Sandbox Podman</text>
               <path
@@ -367,6 +372,12 @@
                 marker-end="url(#arrow)"
               />
               <path class="edge" d="M940 100H1008" marker-end="url(#arrow)" />
+              <path
+                class="edge"
+                d="M942 250H1008"
+                marker-start="url(#arrow)"
+                marker-end="url(#arrow)"
+              />
               <path
                 class="edge"
                 d="M600 220V370H738"

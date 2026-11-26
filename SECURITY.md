@@ -17,9 +17,9 @@ de producció.
 
 ## Abast Admès
 
-S'accepten informes de seguretat sobre la configuració del repositori, les
-dependències, la web estàtica, la futura configuració de desplegament, la futura
-API de xat públic i el futur flux editorial privat.
+S'accepten informes de seguretat sobre el repositori, les dependències, la web
+estàtica, el desplegament, les previews, l'agent privat de Telegram i els
+canvis del futur xat públic.
 
 ## Requisits De Seguretat
 
@@ -36,5 +36,5 @@ API de xat públic i el futur flux editorial privat.
   desplega ni s'actualitza mai a si mateix.
 - Les actualitzacions de dependències i les correccions de seguretat han de
   preservar la integritat del lockfile i superar les comprovacions pertinents.
-- El xat públic és de només lectura. L'assistent editorial utilitza scripts
-  controlats i pull requests, mai publicació directa a producció.
+- Consulta els [límits dels assistents](docs/ai-assistant.md) per distingir el xat
+  públic, el servei privat i els agents locals.

@@ -8,6 +8,10 @@ publicació es registren a l'[ADR 0011](../decisions/0011-news-blog-editorial-pr
 No s'afegeix una fase ni es renumeren les fases existents. Cap tasca es considera
 completada fins que la seva PR estigui revisada, validada i fusionada.
 
+L'entrega conjunta es va fusionar el 8 d'octubre de 2026 a la
+[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140). La fusió no
+acredita les comprovacions manuals sense evidència registrada en el seguiment.
+
 Els pilots inicials són la inauguració del local del 26 de setembre de 2026 i la
 guia per fer-se soci. L'article sobre l'aplicació mòbil s'hi afegeix posteriorment.
 La revisió editorial inicial és substituïda per l'aprovació humana del 8 d'octubre
@@ -64,37 +68,35 @@ implementació d'aquesta funcionalitat es lliuraran en una única PR. Les unitat
 NB-01 a NB-07 es conserven per delimitar abast, dependències i acceptació, no
 com a PR independents.
 
-El worktree actiu és `mountain_runners-news-blog-artifacts`, branca
-`feat/news-blog-artifacts`, creat des de `origin/main`. Hi viuen l'especificació,
-l'ADR, els pilots, el codi i les evidències. El worktree anterior de NB-03 es
-conserva com a còpia històrica, no com a font per continuar implementant.
+El worktree de l'entrega era `mountain_runners-news-blog-artifacts`, branca
+`feat/news-blog-artifacts`, creat des de `origin/main`. El worktree anterior de
+NB-03 es va conservar com a còpia històrica.
 Aquesta agrupació i el trasllat de la planificació fora de `main` són excepcions
 autoritzades per a aquesta funcionalitat; no canvien les normes generals del
 repositori. Sense commits, push o creació de PR remotes no autoritzats.
 
-La implementació local no requereix activar una preview remota. Aquesta prova
-necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
+La implementació local no requereix activar una preview remota. Per a la prova
+real s'apliquen les regles d'autorització de l'[ADR 0009, esmena de la
+PR #273](../decisions/0009-pr-previews-same-domain-and-own-branches.md#esmena-retirada-de-preview-21-de-novembre-de-2026).
 
 ## Tasques, entregues i seguiment
 
 | Unitat | Abast                        | Dependències                        | Estat      | PR   |
 | ------ | ---------------------------- | ----------------------------------- | ---------- | ---- |
-| NB-01  | Decisió i especificació      | Aprovació de la persona mantenidora | En revisió | #140 |
-| NB-02  | Guia, plantilles i skill     | NB-01                               | En revisió | #140 |
-| NB-03  | Model, col·lecció i selecció | NB-01                               | En revisió | #140 |
-| NB-04  | Recursos i modes de build    | NB-03                               | En revisió | #140 |
-| NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | En revisió | #140 |
-| NB-06  | Metadades i descoberta       | NB-05                               | En revisió | #140 |
+| NB-01  | Decisió i especificació      | Aprovació de la persona mantenidora | Completada | #140 |
+| NB-02  | Guia, plantilles i skill     | NB-01                               | Completada | #140 |
+| NB-03  | Model, col·lecció i selecció | NB-01                               | Completada | #140 |
+| NB-04  | Recursos i modes de build    | NB-03                               | Completada | #140 |
+| NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | Completada | #140 |
+| NB-06  | Metadades i descoberta       | NB-05                               | Completada | #140 |
 | NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | En curs    | #140 |
 | NB-08  | Actualitat a la portada      | NB-03 a NB-06                       | En curs    | #140 |
 
-La implementació tècnica es revisa a la
-[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140). Els resultats
-locals indiquen la data i l'abast de cada comprovació a la PR; les execucions de
-CI identifiquen el commit validat. No s'ha fusionat la PR ni desplegat aquests continguts. Les tres entrades
-estan marcades per publicar, amb aprovació editorial del 8 d'octubre.
+La PR fusionada agrupa NB-01 a NB-08 i les tres entrades marcades per publicar
+amb l'aprovació editorial del 8 d'octubre. Els resultats locals indiquen la
+data i l'abast de cada comprovació a la PR; la CI identifica el commit validat.
 
-Pendents de tancament:
+Punts del seguiment sense tancament documentat aquí:
 
 - Fotografia del local opcional, amb drets verificats abans d'afegir-la. No
   bloqueja la publicació del text que la persona mantenidora ha aprovat.
@@ -104,7 +106,6 @@ Pendents de tancament:
   [GHSA-ch52-4w7c-c8xp](https://github.com/advisories/GHSA-ch52-4w7c-c8xp)
   a `http-cache-semantics` via Astro. Servir un artefacte estàtic no descarta
   l'impacte durant el build o les eines locals; no hi ha excepció aprovada.
-- Revisió humana final i merge pel flux protegit.
 
 ### NB-01. Decisió i especificació
 

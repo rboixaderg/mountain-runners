@@ -417,6 +417,9 @@ noms al repositori. Rutes, contingut i comportament observable no canvien.
 
 ### T10: Script D'Actualització De L'Agent
 
+Registre de l'entrega original. Per actualitzar el servei, preval el
+[runbook de l'agent](../operations/agent.md#actualitzar).
+
 **Abast:** `tools/server/agent/commands/update/cli.mjs` amb els mòduls i les proves que
 necessiti, `docs/operations/agent.md` (ordre, reversió i reconstrucció de la imatge) i,
 si cal, una ordre nova a `package.json`.
@@ -613,6 +616,11 @@ excepte `docs/decisions/` i `docs/specs/`; la regla del mapa només afecta els f
 llista paral·lela que pugui divergir. La comprovació no valida URLs externes.
 
 ## Script D'Actualització De L'Agent
+
+Passos de la T10 original, conservats com a registre. Quan difereixin del
+[runbook d'actualització](../operations/agent.md#actualitzar), s'aplica el
+runbook, incloses les comprovacions d'estat i la seqüència d'aturada, còpia i
+arrencada.
 
 L'ordre és `tools/server/agent/commands/update/cli.mjs`. Rep la ruta d'instal·lació i la
 de còpies com a paràmetres amb els valors de producció per defecte, perquè les proves

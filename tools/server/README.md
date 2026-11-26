@@ -1,66 +1,32 @@
 # Eines De Servidor
 
-Aquest directori conté la provisió i les eines operatives de la fase 5 de
-[`docs/specs/phase-5/phase-5-publication-operation.md`](../../docs/specs/phase-5/phase-5-publication-operation.md).
-Tota l'operació està documentada a
-[`docs/operations/`](../../docs/operations/README.md); aquí només es descriu la
-disposició.
+Aquest directori conté la provisió del VPS, les eines de releases i previews i
+el servei privat de Telegram. Les identitats, els camins del servidor i els
+procediments són a [Operació](../../docs/operations/README.md).
 
 ## Estructura
 
-| Path                                  | Contingut                                                                                   |
-| ------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon)        |
-| `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                       |
-| `caddy/Caddyfile.production`          | Host de producció, importat **abans** del canvi DNS (T5.5)                                  |
-| `caddy/Caddyfile.redirects`           | Mapa de redireccions (llegat, spam, sondes i prefix d'idioma) importat per `Caddyfile`      |
-| `caddy/content-security-policy.mjs`   | CSP vigent compartida pel `Caddyfile` i `verify-site`                                       |
-| `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex o indexable           |
-| `verify/site-contract.mjs`            | Comprovacions pures: indexable, HSTS T5.1 i redirect `www` → apex                           |
-| `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                         |
-| `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament           |
-| `release/ssh-gate.mjs`                | Forced command: tokenitza sense shell; `receive` escriu `incoming/`                         |
-| `release/receive.mjs`                 | Escriptura limitada i hashed de uploads a `incoming/`                                       |
-| `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                                  |
-| `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                            |
-| `../../packages/telegram-pi-bridge/`  | Nucli intern: Telegram, cua, sessions i RPC; sense GitHub ni Docker                         |
-| `agent/`                              | Base operativa de l'agent privat de la fase 8 (T8.3); frontera a `docs/operations/agent.md` |
-| `agent/processes/telegram-bridge/`    | Procés del pont de Telegram, sessions i admissió duradora                                   |
-| `agent/runtime/`                      | Adaptador del client RPC, perfil de confiança i extensió `sandbox_bash`                     |
-| `agent/sandbox/`                      | Execució aïllada i arguments de Podman compartits amb l'extensió                            |
-| `agent/repository/`                   | Metadades Git de confiança, worktrees, commits, push i PR                                   |
-| `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                               |
-| `systemd/mountain-agent.service`      | Unitat del pont de Telegram de la T8.3                                                      |
-| `systemd/var-lib-mountain*.mount`     | Volums de treball i estat de l'agent                                                        |
-| `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                       |
-
-## Layout Al Servidor
-
-```text
-/var/lib/mountain-runners/         755  root:root
-├── releases/<commit>/             755  root:root (una per release)
-├── incoming/                      2770 root:mountain-runners (uploads)
-├── current                        symlink atòmic a la release activa (root)
-├── releases.json                  600  root:root (registre permanent)
-└── .ssh/authorized_keys           644  clau de desplegament (forced command)
-/var/log/mountain-runners/         700  caddy:caddy (accés només via sudo)
-/run/mountain-release.sock         660  root:mountain-runners (socket del daemon)
-/usr/local/lib/mountain-runners/        eines instal·lades pel bootstrap
-```
-
-## Identitats
-
-- **Persona mantenidora**: usuari administratiu no `root` amb `sudo` (T5.1).
-- **`mountain-deploy`**: usuari de sistema amb shell restringit (només el
-  gate); la seva clau SSH està restringida a
-  `command="/usr/local/bin/mountain-ssh-gate"` amb `restrict`, sense PTY ni
-  forwarding. No té cap accés privilegiat al filesystem ni `sudo`. El gate
-  accepta `receive` (escriu stdin a `incoming/`) i reenvia la resta d'ordres
-  al daemon, que valida els arguments i executa les operacions com a `root`.
-- **Daemon de releases**: servei systemd com a `root`; únic escriptor de les
-  release trees, el registre i el symlink `current`.
-- **`caddy`**: usuari del paquet; només llegeix la release activa i escriu els
-  logs. No gestiona TLS ni la configuració.
+| Path                                  | Contingut                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon)                          |
+| `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                                         |
+| `caddy/Caddyfile.production`          | Configuració dels hosts de producció                                                                          |
+| `caddy/Caddyfile.redirects`           | Mapa de redireccions (llegat, spam, sondes i prefix d'idioma) importat per `Caddyfile`                        |
+| `caddy/content-security-policy.mjs`   | CSP vigent compartida pel `Caddyfile` i `verify-site`                                                         |
+| `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex o indexable                             |
+| `verify/site-contract.mjs`            | Comprovacions pures: indexable, HSTS T5.1 i redirect `www` → apex                                             |
+| `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                                           |
+| `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament                             |
+| `release/ssh-gate.mjs`                | Forced command: tokenitza sense shell; `receive` escriu `incoming/`                                           |
+| `release/receive.mjs`                 | Escriptura limitada i hashed de uploads a `incoming/`                                                         |
+| `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                                                    |
+| `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                                              |
+| `preview/`                            | [Comanda i processos del publicador de previews](../../docs/operations/previews.md#noms-del-flux-de-previews) |
+| `agent/`                              | [Agent privat de desenvolupament](agent/README.md)                                                            |
+| `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                                                 |
+| `systemd/mountain-agent.service`      | Unitat del servei privat de Telegram                                                                          |
+| `systemd/var-lib-mountain*.mount`     | Volums de treball i estat de l'agent                                                                          |
+| `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                                         |
 
 ## Verificació
 
@@ -69,6 +35,3 @@ node --test tools/server/release/
 bash -n tools/server/bootstrap/bootstrap.sh
 caddy validate --config <Caddyfile generat> --adapter caddyfile
 ```
-
-Les accions remotes (HSTS, entorn `production-rollback` i retirada del gate
-de `production`) requereixen aprovació explícita de la persona mantenidora.

@@ -23,11 +23,11 @@
 - Titular concret, sense exageracions.
 - Resum breu per al llistat.
 - Entradeta amb els fets principals.
-- Seccions opcionals amb context confirmat. Encapçalaments sense H1 al Markdown.
+- Seccions opcionals amb context confirmat. Segueix el
+  [format de la guia editorial](../guide.md#preparar-una-entrada).
 - Fonts públiques opcionals i esdeveniments relacionats existents.
 
 ## Abans de publicar
 
 Comprovar fets, autoria, drets, traduccions i data real de publicació amb offset.
-La persona mantenidora ha d'aprovar l'entrada. No confondre la data de l'acte amb
-la de publicació. Seguir la [guia editorial](../guide.md).
+Seguir [Revisió i publicació](../guide.md#revisió-i-publicació).

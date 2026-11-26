@@ -3,11 +3,9 @@
 ## Propòsit
 
 Aquest document operacionalitza l'[ADR 0006](decisions/0006-presentation-layer-structure.md)
-i fixa com s'escriu el codi de `apps/web` perquè agents i persones el mantinguin
-de manera coherent. `AGENTS.md` resumeix les obligacions; aquest document aporta
-el detall, les regles de decisió i els exemples del propi codi. La revisió de
-cada PR comprova aquestes regles manualment i amb les eines automatitzades que
-les poden expressar; no totes disposen encara d'una regla de lint pròpia.
+i fixa com s'escriu el codi de `apps/web`. La revisió de cada PR comprova
+aquestes regles manualment i amb les eines automatitzades que les poden
+expressar; no totes disposen d'una regla de lint pròpia.
 
 ## Capes
 

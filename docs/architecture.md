@@ -3,26 +3,20 @@
 ## Estat Actual
 
 El repositori conté un workspace pnpm i una aplicació Astro estàtica a
-`apps/web`, implementada fins a la fase 4. Integra TypeScript estricte,
-Tailwind, Paraglide, Content Collections amb Zod, SEO tècnic, proves Vitest i
-Playwright i workflows de qualitat i seguretat.
+`apps/web`. Integra TypeScript estricte, Tailwind, Paraglide, Content Collections
+amb Zod, SEO tècnic, proves Vitest i Playwright i workflows de qualitat i
+seguretat.
 
-Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
-`externalActions`, `contact` i `posts`) passen per YAML restringit i una capa central de
-publicació. Aquesta branca inclou 75 rutes canòniques, 27 en català i 24 en cada altre idioma, més la
-redirecció arrel, la 404 global, `robots.txt`, el sitemap, `/llms.txt` i els
-recursos públics validats. Les dades de contacte es mostren al prepeu compartit
-i a les pàgines legals; la pàgina de Contacte creada a la fase 3 es va retirar a
-la T4.4.
+Les col·leccions passen per YAML restringit i una capa central de publicació.
+Consulta el [model de contingut](content-model.md) per veure les col·leccions i
+els criteris de publicació. Les dades de contacte es mostren al prepeu compartit
+i a les pàgines legals.
 
-`posts` disposa d'esquema, hubs i detalls i seleccions explícites pública i de
-preview. La notícia del local i els dos articles de blog estan marcats per
-publicar amb aprovació editorial del 8 d'octubre de 2026, només en català.
-Els esborranys de prova continuen aïllats del build públic. Els posts no modifiquen el catàleg públic de les altres col·leccions. Les cobertes
-seleccionades es renderitzen amb derivades WebP. Els
-constructors oficials fixen `PUBLIC_PREVIEW=false` per a producció i `true` per
-a preview, rebutjant flags contradictoris. No s'utilitzen imports glob d'imatges
-editorials: poden emetre originals de variants excloses.
+`posts` disposa de llistats i detalls de notícies i blog, amb seleccions
+explícites per al build públic i el de preview. Els constructors oficials fixen
+`PUBLIC_PREVIEW=false` per a producció i `true` per a preview. Refusen valors
+contradictoris. No s'utilitzen imports glob d'imatges editorials: poden emetre
+originals de variants excloses.
 
 Les cobertes editorials seleccionades es transformen amb `sharp` durant el
 build, sense imports d'imatges a Vite. La ruta estàtica `editorial-images/`
@@ -50,21 +44,10 @@ pot descobrir directament; si navega per la interfície, ha d'obrir el
 desplegable per recuperar-se d'una ruta inexistent.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
-El workflow `Artifact` (T5.2/T5.4) construeix i verifica l'artefacte de
-producció a cada push a `main` i el job de desplegament, en el mateix run,
-transfereix aquest artefacte a l'entorn GitHub `production` (restringit a
-`main`, sense secrets al job de build). La T5.3 ha preparat la configuració i
-les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
-releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
-`analytics.rogerbg.cat` ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)).
-El diagrama viu de la configuració del VPS és a
+El [runbook de producció](operations/web-and-releases.md) descriu el
+desplegament des de `main`. El [runbook de previews](operations/previews.md#publicar-una-preview)
+descriu el flux autoritzat per l'etiqueta `preview`. El diagrama del VPS és a
 [`docs/operations/README.md`](operations/README.md#arquitectura-del-servidor).
-Lighthouse continua
-sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
-[tall DNS](operations/web-and-releases.md#tall-dns-i-primera-activació-pública));
-les previews de
-pull request ja són operatives mitjançant el workflow `Preview`, amb petició
-explícita `/preview` i publicador de confiança des de `main`.
 No existeix cap servei Hono.
 
 ## Direcció Acceptada
@@ -89,36 +72,20 @@ i no introdueix cap servei extern ni canvia Plausible.
 
 ## Límits De L'Arquitectura
 
-| Àrea                            | Responsabilitat                                               | Límit                                                                                                                                                                                                       |
-| ------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica                    | Renderitzar contingut editorial publicat                      | El build d'Astro no conté secrets                                                                                                                                                                           |
-| Contingut                       | Pàgines estructurades i dades de l'associació                 | Versionat a Git i revisat per pull request                                                                                                                                                                  |
-| Xat públic                      | Respondre preguntes sobre contingut publicat                  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                 |
-| Assistent editorial             | Preparar canvis de contingut                                  | Flux privat de branca, validació i pull request                                                                                                                                                             |
-| Agent privat de desenvolupament | Consultar i preparar canvis de codi o contingut fins a una PR | [Frontera i permisos vigents](decisions/0013-private-development-agent-boundary.md#decisió-vigent)                                                                                                          |
-| Allotjament                     | Servir la web estàtica i serveis aïllats                      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                 |
-| Analítica                       | Mesurar visites agregades de la web pública                   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) |
+| Àrea                            | Responsabilitat                                 | Límit                                                                                                                                                                                                       |
+| ------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica                    | Renderitzar contingut editorial publicat        | El build d'Astro no conté secrets                                                                                                                                                                           |
+| Contingut                       | Pàgines estructurades i dades de l'associació   | Versionat a Git i revisat per pull request                                                                                                                                                                  |
+| Xat públic                      | Respondre preguntes sobre contingut publicat    | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                 |
+| Agent privat de desenvolupament | Consultar i preparar canvis de codi o contingut | [Frontera i permisos vigents](decisions/0013-private-development-agent-boundary.md#decisió-vigent)                                                                                                          |
+| Allotjament                     | Servir la web estàtica i serveis aïllats        | [Arquitectura del servidor](operations/README.md#arquitectura-del-servidor)                                                                                                                                 |
+| Analítica                       | Mesurar visites agregades de la web pública     | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) |
 
 ## Estructura De Pàgines I Presentació
 
-Les pàgines segueixen una separació de capes fixada a la T3.1 de la fase 3 i
-registrada a l'[ADR 0006](decisions/0006-presentation-layer-structure.md). El
-detall operatiu —tipus de components, guards, constants tipades i regles de
-decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
-
-| Capa        | Ubicació                | Responsabilitat                                                                            |
-| ----------- | ----------------------- | ------------------------------------------------------------------------------------------ |
-| Pàgines     | `src/pages/`            | Primes: `getStaticPaths`, càrrega de dades, metadades i composició de components i layouts |
-| Domini      | `src/lib/content/`      | Selecció, ordenació, publicació i rutes del contingut editorial                            |
-| Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista                    |
-| Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada        |
-
-`docs/code-conventions.md` és la font normativa del detall. Les desviacions que
-la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
-#73: els components reben la selecció de domini resolta i el contracte del
-`locale` dels helpers es deriva de les estructures de dades (regla 3 esmenada
-de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
-separada o un ADR que substitueixi aquesta frontera.
+L'[ADR 0006](decisions/0006-presentation-layer-structure.md) fixa la separació
+de capes. Les [convencions de codi](code-conventions.md) indiquen on viu cada
+responsabilitat.
 
 ### Composició editorial
 

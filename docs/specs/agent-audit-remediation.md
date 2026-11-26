@@ -802,3 +802,13 @@ control exigit per un ADR sense una esmena prèvia.
 3. Els documents vius descriuen el comportament resultant.
 4. Les línies de codi es tornen a mesurar amb l'ordre de la línia base i es
    registra el resultat.
+
+Mesura al tancament (`e0e3004b`), amb les mateixes exclusions de la línia base:
+
+| Codi de producció             | Línia base (`3c4f462`) | Tancament |
+| ----------------------------- | ---------------------: | --------: |
+| `tools/server/agent`          |                 20.494 |    17.046 |
+| `packages/telegram-pi-bridge` |                  3.359 |     3.069 |
+| Total                         |                 23.853 |    20.115 |
+
+La reducció total és del 15,7 %. L'objectiu de reducció era orientatiu.

@@ -2,13 +2,20 @@
 
 ## Estat
 
-En curs. Defineix l'entrada del [backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
-i l'[issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
+Implementació fusionada a la [PR #268](https://github.com/rboixaderg/mountain-runners/pull/268).
+Continuen pendents les [verificacions a GitHub](#verificacions-a-github) sense
+evidència registrada. L'entrega correspon a l'[entrada del backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
+i a l'[issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
 Les esmenes als
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
 [ADR 0013](../decisions/0013-private-development-agent-boundary.md) s'han
 fusionat. Aquesta especificació no canvia cap token, entorn o configuració
 remota.
+
+La [retirada de `/preview`](retire-preview-command.md), aprovada a la PR #273,
+substitueix la convivència amb el comentari i el `workflow_dispatch` sense
+etiqueta. Aquests casos i les peticions antigues de l'agent es conserven com a
+registre del pla original.
 
 ## Objectiu
 
@@ -76,10 +83,10 @@ configuració remota. Està descrita al
   d'aquesta mateixa PR.
 - Substitueix el bloc 4 de
   [T8.9](phase-8/phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
-  automàtica amb `/preview`), que encara no s'ha implementat.
-- L'etiqueta `preview` existeix al repositori des del 21 de novembre de 2026,
-  creada amb l'aprovació de la persona mantenidora. Fins que es fusioni la
-  implementació, posar-la a una PR no publica cap preview.
+  automàtica amb `/preview`), que no es va implementar.
+- L'etiqueta `preview` es va crear al repositori el 21 de novembre de 2026 amb
+  l'aprovació de la persona mantenidora. El codi per publicar amb l'etiqueta
+  es va fusionar a #268.
 
 ## Tasques, Entregues I Seguiment
 
@@ -270,7 +277,8 @@ servidor (`pnpm test:server`) amb GitHub i transport simulats.
    escriptura, `preview-revoked` o un fork no publiquen.
 4. Treure `preview` retira la preview, i una publicació de l'etiqueta pendent
    no s'activa.
-5. `/preview` i `workflow_dispatch` continuen funcionant sense canvis.
+5. Criteri històric, substituït per #273: `/preview` i `workflow_dispatch`
+   continuaven funcionant sense canvis.
 6. L'agent crea la PR del tema amb l'etiqueta, no comenta `/preview` i informa
    només l'URL que el publicador confirma per al cap actual.
 7. Els punts pendents de [Verificacions a GitHub](#verificacions-a-github)

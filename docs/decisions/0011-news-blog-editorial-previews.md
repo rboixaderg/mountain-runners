@@ -2,13 +2,19 @@
 
 ## Estat
 
-Acceptada per la persona mantenidora el 2 d'octubre de 2026. Implementació a la
-PR #140, pendent de revisió i merge humà. Aquesta decisió no autoritza cap
-activació remota; les previews requereixen una petició explícita separada.
+Acceptada per la persona mantenidora el 2 d'octubre de 2026. La implementació es
+va fusionar el 8 d'octubre de 2026 a la
+[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140). Aquesta
+decisió no autoritza per si sola cap activació remota.
 
 Esmenada el 18 de novembre de 2026 (T8.8) sobre qui aprova la publicació d'una
 entrada. La persona mantenidora va aprovar l'esmena el 19 de novembre de 2026;
 aquesta és acceptada i forma part de la decisió.
+
+La petició explícita per commit descrita al registre original ha estat
+substituïda per l'autorització per etiqueta de l'[ADR 0009, esmena de la
+PR #273](0009-pr-previews-same-domain-and-own-branches.md#esmena-retirada-de-preview-21-de-novembre-de-2026).
+Es manté l'excepció editorial d'aquest ADR.
 
 ## Decisió
 
@@ -30,8 +36,8 @@ controls dels ADR 0009 i 0010, la separació d'artefactes, l'autorització human
 l'origen, la caducitat ni el publicador de confiança.
 
 Els esborranys han de ser segurs de compartir públicament. Git és públic i
-`noindex` no és control d'accés. La petició d'activació d'una preview autoritza
-l'exposició dels esborranys d'aquell commit. No s'hi admeten secrets, embargaments
+`noindex` no és control d'accés. Una preview autoritzada segons l'ADR 0009 pot
+exposar els esborranys del cap publicat. No s'hi admeten secrets, embargaments
 confidencials o dades personals no publicables.
 
 ## Raonament
@@ -95,16 +101,16 @@ depenia d'una conversa fora del tema.
   servei.
 - La petició és l'aprovació editorial d'aquella entrada concreta, no de cap altra
   ni de cap canvi posterior.
-- El merge continua sent una decisió humana, amb les regles de `/merge` de
-  l'[ADR 0013](0013-private-development-agent-boundary.md), i el desplegament no
+- El merge continua sent una decisió humana, amb els controls de
+  l'[ADR 0013](0013-private-development-agent-boundary.md#decisió-vigent), i el desplegament no
   canvia: només el pipeline protegit publica el lloc.
 - L'agent no publica mai per iniciativa pròpia ni per una instrucció implícita.
 - Les variants en castellà i anglès només s'escriuen quan algú les demana.
 
 La guia editorial recull el mateix criteri. Aquesta esmena no canvia la resta de
-l'ADR 0011: la preview continua sent explícita, els esborranys continuen sent
-segurs de compartir i `published: true` en una PR no demostra que aquella versió
-ja sigui pública.
+l'ADR 0011: la preview continua subjecta a l'ADR 0009, els esborranys continuen
+sent segurs de compartir i `published: true` en una PR no demostra que aquella
+versió ja sigui pública.
 
 ## Conseqüències
 
@@ -117,5 +123,4 @@ ja sigui pública.
   no substitueix l'aprovació editorial ni el flux de Git. Des de l'esmena del 18
   de novembre de 2026, una persona verificada del grup privat pot aprovar la
   publicació d'una entrada demanant-la explícitament al tema.
-- El comportament només existeix quan s'implementin i revisin les tasques de
-  l'[especificació de notícies i blog](../specs/news-and-blog.md).
+- El seguiment de l'entrega és a l'[especificació de notícies i blog](../specs/news-and-blog.md).

@@ -6,8 +6,15 @@ Defineix l'entrada del
 [backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada).
 L'acceptació de l'esmena consta a
 [l'ADR 0013](../decisions/0013-private-development-agent-boundary.md).
-Aquesta especificació no canvia cap token, entorn ni configuració remota, no
-activa cap permís i no fa cap merge real.
+T1 i T2 s'han fusionat. Les proves de l'entrega són simulades; els controls
+reals i l'aprovació explícita de la primera fusió continuen pendents a T8.6.
+
+Són posteriors a aquest pla la [sincronització prèvia al merge](agent-sync-before-merge.md)
+i les correccions de l'auditoria: la [T2](agent-audit-remediation.md#t2-què-pot-fusionar-merge)
+exclou infraestructura, la [T11](agent-audit-remediation.md#t11-estats-que-bloquegen-sense-sortida)
+afegeix la via acotada de reconciliació d'operador, la [T16](agent-audit-remediation.md#t16-detalls-de-la-confirmació-del-merge)
+fa caducar les preguntes i respon a confirmacions fora de context, i la
+[T26](agent-audit-remediation.md#t26-aplicar-lesmena) retira la reparació de CI.
 
 ## Objectiu
 
@@ -48,8 +55,8 @@ les ajusta el 23 de novembre de 2026 abans de tancar la T2:
 
 Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 
-- L'avís de preview confirmada fixa el SHA del merge; avui el fixa el seguiment de
-  CI i la T1 ho corregeix.
+- L'avís de preview confirmada fixa el SHA del merge. La T1 va substituir el
+  SHA que abans fixava el seguiment de CI.
 - Es conserven les fronteres de l'ADR 0009 i de l'etiqueta `preview`: només
   branques del repositori principal, revalidació abans d'actuar i
   `preview-revoked` amb precedència.
@@ -76,16 +83,16 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 - Esmena de l'ADR 0013 acceptada abans de començar la implementació.
 - La T2 depèn de la T1: sense el SHA de la preview confirmada, la pregunta no pot
   autoritzar-lo.
-- Abans d'activar cal verificar els controls i alinear les instruccions dins de la
-  T2. Aquest esborrany no canvia les regles vigents, i la primera fusió real
-  necessita l'aprovació explícita de la persona mantenidora.
+- Abans d'activar cal verificar els controls. L'alineació de les instruccions
+  formava part de la T2. La primera fusió real necessita l'aprovació explícita
+  de la persona mantenidora.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències    | Resultat verificable                                               | PR   |
-| ----- | ------- | --------------- | ------------------------------------------------------------------ | ---- |
-| T1    | Feta    | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada           | #294 |
-| T2    | En curs | T1 i esmena ADR | «Sí, a producció» a la pregunta autoritza aquell merge i cap altre | -    |
+| Tasca | Estat      | Dependències    | Resultat verificable                                               | PR                                                              |
+| ----- | ---------- | --------------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| T1    | Completada | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada           | [#294](https://github.com/rboixaderg/mountain-runners/pull/294) |
+| T2    | Completada | T1 i esmena ADR | «Sí, a producció» a la pregunta autoritza aquell merge i cap altre | [#298](https://github.com/rboixaderg/mountain-runners/pull/298) |
 
 ### T1: Fixació Del Merge A La Preview Confirmada
 
@@ -132,9 +139,10 @@ aquella pregunta fusiona la PR i el SHA fixats.
 - L'únic que fixa el SHA és l'avís de preview confirmada i lliurada, amb
   l'identificador del missatge desat després de l'enviament; un enviament fallit o
   incert no deixa cap vincle i un verd de CI no és cap prova de lliurament.
-- Només compta l'avís de la preview confirmada de la publicació més nova; una
-  petició manual de preview no el substitueix. Una publicació posterior sense
-  avís confirmat no permet tornar a l'anterior.
+- Només compta l'avís de la preview confirmada de la publicació més nova. Una
+  publicació posterior sense avís confirmat no permet tornar a l'anterior.
+  L'exclusió original d'una petició manual de preview al tema és històrica:
+  l'agent ja no admet aquella petició.
 - El merge exigeix PR oberta, no esborrany, base `main`, repositori principal, cap
   igual al SHA, comprovacions obligatòries en verd, branca al dia, etiqueta
   `preview` i cap `preview-revoked`. No fusiona si en falta res, si el lliurament és
@@ -160,8 +168,10 @@ El servei fa la pregunta només quan es compleixen totes aquestes condicions:
 - La preview compleix [Fixació del merge](#fixació-del-merge-t1), i el tema no té
   feina més nova ni cap merge en curs o desconegut per a aquella PR.
 
-La pregunta i la confirmació es reconeixen abans del classificador i no inicien
-cap torn de model. El servei respon amb aquesta pregunta fixa, i res més:
+El servei reconeix la validació i comprova l'autorització sense el model.
+La sincronització prèvia al merge pot obrir un torn de Pi si hi ha un conflicte.
+El classificador del pla original es va retirar a la T19 de l'auditoria.
+El servei respon a la validació amb aquesta pregunta fixa, i res més:
 
 > Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis
 > d'aquesta versió es fusionaran i es publicaran a producció si el desplegament
@@ -204,8 +214,8 @@ vigent) segueix el camí actual i no fusiona res.
 - Una confirmació repetida o una pregunta duplicada no fusionen dues vegades,
   encara que el servei es reiniciï.
 - Un resultat desconegut no es repeteix: es llegeix la PR. Si GitHub la mostra
-  fusionada, es tanca i s'informa; si no, només una persona verificada decideix amb
-  `/merge <PR> <SHA>`.
+  fusionada, es tanca i s'informa. La via original amb `/merge <PR> <SHA>`
+  es manté; ja no és l'única, segons la T11 de l'auditoria.
 - Un reinici o un estat incert fallen en tancat: no es repeteix cap merge ni se
   n'inventa el resultat.
 - La traça privada registra autor, moment, PR, SHA i mètode, sense el text de la
@@ -280,7 +290,8 @@ Aquests requisits es deriven de les decisions anteriors; no són decisions noves
    amb la pregunta fixa i no inicia cap torn de model.
 4. «Perfecte», qualsevol altre text, un avís anterior, una persona no verificada,
    un `external_reply`, una cita, un reenviament, una edició o un fitxer o llegenda
-   no reben cap pregunta ni cap resposta inventada.
+   no reben cap pregunta ni autoritzen el merge. La T16 de l'auditoria concreta
+   la resposta a confirmacions fora de context.
 5. Només la resposta «Sí, a producció» (normalitzada sense exigir accents, comes
    ni «a») d'aquella persona a aquella pregunta fusiona amb squash la PR i el
    SHA fixats; la fusió és a `main`, el desplegament s'inicia amb el push i cap

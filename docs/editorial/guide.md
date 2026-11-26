@@ -31,6 +31,9 @@ El format executable és YAML restringit a
 [el model](../content-model.md). Les plantilles són fitxes de treball, no fitxers
 per copiar directament a la col·lecció.
 
+Si una secció té títol, posa'l al camp `heading`. El Markdown del cos no admet
+encapçalaments. Si l'entrada no té seccions, declara `sections: []`.
+
 Els articles, publicats o en esborrany, viuen només a la col·lecció `posts`.
 `docs/` conté la documentació del flux, no còpies dels textos de la web ni
 documents complementaris de cada entrada. Les notes de revisió, les aprovacions
@@ -135,26 +138,20 @@ l'accés.
 
 ## Revisió i publicació
 
-Segons l'[esmena de l'ADR 0011](../decisions/0011-news-blog-editorial-previews.md),
-acceptada per la persona mantenidora el 19 de novembre de 2026, la petició
-explícita de publicació d'una persona verificada del grup privat és l'aprovació
-editorial d'aquella entrada concreta: pot dir «publica-la» al tema on
-s'ha preparat la notícia o l'article. L'agent la marca com a publicada, amb
-`publishedAt` a l'instant de la petició, i ho explica a la persona. El merge del
-canvi continua sent humà i el desplegament segueix el flux protegit del projecte.
-L'agent no publica mai per iniciativa pròpia ni per una instrucció implícita. La
-revisió de fets, signatura, drets i data forma part de la feina dins del tema; les
-preguntes pendents i les evidències queden a la PR, i la persona mantenidora
-continua revisant els continguts.
+Segueix l'[esmena d'aprovació editorial de l'ADR 0011](../decisions/0011-news-blog-editorial-previews.md#esmena-del-18-de-novembre-de-2026-t88).
+En rebre una petició de publicació autoritzada, l'agent marca l'entrada com a
+publicada, fixa `publishedAt` a l'instant de la petició i ho explica a la persona.
+Revisa fets, signatura, drets i data al mateix tema. Registra les preguntes
+pendents i les evidències a la PR.
 
 La data de l'acte no és `publishedAt`: aquest camp és l'instant de publicació, amb
 offset. `createdAt` identifica la preparació. `updatedAt` es reserva per a canvis
 materials. Les correccions s'apliquen directament al text; no hi ha un camp ni una
 secció separada de rectificacions.
 
-El preview permet llegir l'esborrany sense canviar `published`. Publicar una
-entrada no autoritza l'agent a fer merge ni a desplegar per ell mateix. La
-publicació segueix una PR revisada i el flux protegit del projecte.
+La preview permet llegir l'esborrany sense canviar `published`. L'aprovació
+editorial no autoritza el merge. El merge segueix
+[l'ADR 0013](../decisions/0013-private-development-agent-boundary.md#decisió-vigent).
 
 ## Comprovacions de la guia i la skill
 

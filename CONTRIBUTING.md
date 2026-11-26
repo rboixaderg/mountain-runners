@@ -11,8 +11,7 @@ Cal tenir Node 24.22.3, pnpm 10.33.0 mitjançant Corepack, Gitleaks 8.30.1 i els
 navegadors fixats per Playwright. Gitleaks és obligatori: el hook de pre-commit
 l'executa abans de crear cada commit per detectar secrets en els fitxers staged.
 
-Després de `pnpm install`, instal·la els navegadors locals necessaris per
-executar el gate complet (`pnpm validate` o els recorreguts E2E):
+Després de `pnpm install`, instal·la els navegadors locals:
 
 ```sh
 pnpm exec playwright install chromium firefox webkit
@@ -64,12 +63,8 @@ al worktree principal.
    el comportament o un límit arquitectònic.
 5. Obre una pull request amb un títol alineat amb la fase o especificació, una
    descripció clara, evidència de validació i qualsevol impacte operatiu.
-6. Una persona mantenidora la fusiona només després de la revisió i de superar
-   les comprovacions obligatòries. Els agents no fusionen ni activen auto-merge;
-   l'única excepció és l'agent privat de la fase 8, amb la petició explícita
-   d'un membre verificat o la seva resposta «Sí, a producció» a la pregunta fixa
-   que segueix la validació «La feina està validada» a l'avís vigent, l'esmena
-   de merge de l'ADR 0013 aprovada (PR #183) i els seus controls verificats.
+6. La PR només es fusiona després de la revisió i de superar les comprovacions
+   obligatòries. Segueix les [regles de merge d'AGENTS.md](AGENTS.md#git-and-review).
 7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
 
 Els canvis directes al servidor de producció i els push directes a la branca

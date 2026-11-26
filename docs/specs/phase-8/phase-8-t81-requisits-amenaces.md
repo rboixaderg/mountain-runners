@@ -2,15 +2,13 @@
 
 ## Estat i abast
 
-Esborrany de treball per a [T8.1 de la fase 8](phase-8-editorial-assistance.md).
-Distingeix els requisits de l'especificació fusionada de les propostes pendents
-de revisió. No autoritza desplegaments, comptes, credencials ni canvis remots.
-T8.2 ha de verificar la viabilitat i obtenir l'aprovació dels ADR abans d'activar
-els permisos ampliats. Les fronteres vigents d'[assistents](../../ai-assistant.md) i
-els ADR [0002](../../decisions/0002-public-chat-and-private-editor.md),
-[0003](../../decisions/0003-agent-workflow-and-security.md) i
-[0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md) continuen
-aplicant-se fins que s'esmenin.
+Registre de treball de [T8.1 de la fase 8](phase-8-editorial-assistance.md#t81-requisits-sessions-identitats-i-amenaces),
+completada amb la [PR #180](https://github.com/rboixaderg/mountain-runners/pull/180).
+Conserva els requisits i les verificacions previstes abans del pilot com a
+línia base. La frontera vigent és a l'[ADR 0013](../../decisions/0013-private-development-agent-boundary.md#decisió-vigent)
+i l'acceptació, a l'[especificació de la fase 8](phase-8-editorial-assistance.md#criteris-dacceptació).
+Les esmenes posteriors substitueixen els requisits incompatibles d'aquest
+registre. El tancament de T8.1 no acredita les proves de les tasques posteriors.
 
 ## Contracte de sessió i identitat
 
@@ -126,7 +124,7 @@ aplicant-se fins que s'esmenin.
 | Esgotament de recursos o cua                             | Afectació del VPS i de la web                                       | Límits configurables, cua acotada i servei separat                                    | Mesurar CPU, memòria, disc, temps i càrrega; provar aturada sense afectar producció                            |
 | Adjunts maliciosos o dades personals                     | Exfiltració, fitxers insegurs o publicació indeguda                 | Validar tipus real, mida i destinació; eliminar metadades; revisar drets              | Provar tipus fals, traversal i límits d'imatge de l'especificació                                              |
 
-## Punts pendents abans de tancar T8.1
+## Punts pendents abans de tancar T8.1 (registre històric)
 
 1. Revisar la matriu d'amenaces i el tractament de dades des dels punts de vista
    de seguretat, privacitat, col·laboració i operació.

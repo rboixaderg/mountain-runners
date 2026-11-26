@@ -2,14 +2,13 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del
-[backlog](../backlog.md#retirar-la-petició-de-preview-amb-preview). Cap tasca
-passa a `En curs` fins que la PR d'aquesta especificació, amb les esmenes
-proposades als
-[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
-[ADR 0013](../decisions/0013-private-development-agent-boundary.md), es revisi i
-es fusioni. Aquesta especificació no canvia cap token, entorn o configuració
-remota.
+Les esmenes als [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
+i [0013](../decisions/0013-private-development-agent-boundary.md) es van aprovar
+a la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273). La retirada
+del disparador (T1) i del codi antic de l'agent (T2) s'han fusionat. L'entrega
+correspon a l'[entrada del backlog](../backlog.md#retirar-la-petició-de-preview-amb-preview).
+No hi ha evidència registrada de la [verificació a GitHub](#verificació-a-github)
+ni de la retirada d'`issue_comment` de la política remota d'Actions.
 
 ## Objectiu
 
@@ -70,10 +69,10 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències                        | Resultat verificable                                           | PR  |
-| ----- | ------- | ----------------------------------- | -------------------------------------------------------------- | --- |
-| T1    | Pendent | Etiqueta verificada, esmenes ADR    | `/preview` no publica i la reconciliació retira sense etiqueta | -   |
-| T2    | Pendent | T1, servei sense peticions incertes | L'agent no conté el codi de les peticions `/preview`           | -   |
+| Tasca | Estat      | Dependències                        | Resultat verificable                                           | PR                                                              |
+| ----- | ---------- | ----------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- |
+| T1    | En curs    | Etiqueta verificada, esmenes ADR    | `/preview` no publica i la reconciliació retira sense etiqueta | [#277](https://github.com/rboixaderg/mountain-runners/pull/277) |
+| T2    | Completada | T1, servei sense peticions incertes | L'agent no conté el codi de les peticions `/preview`           | [#279](https://github.com/rboixaderg/mountain-runners/pull/279) |
 
 ### T1: Retirada De `/preview` Al Publicador
 
@@ -146,6 +145,11 @@ incerta.
   canvien.
 
 ## Agent
+
+Les precondicions sobre peticions antigues i l'esquema `preview_requests`
+corresponen a l'actualització original. La [T27 de l'auditoria](agent-audit-remediation.md#t27-estat-unificat)
+va unificar l'estat a `publications`; el [runbook](../operations/agent.md#actualitzar)
+regeix les actualitzacions vigents.
 
 - Es retiren `previewCommand`, `getAuthenticatedLogin`, la recuperació
   `recoverCommenting`, les resolucions de peticions incertes, el recompte que
