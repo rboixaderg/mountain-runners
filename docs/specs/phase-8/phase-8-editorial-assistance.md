@@ -1125,3 +1125,55 @@ han de passar abans de donar-la per completada.
     tècniques, informació repetida ni una preview fallida. L'informe de preview
     confirma l'URL real o fracassa en llenguatge planer, el model rep l'estat
     del tema i la imatge, i la publicació per petició manté el merge humà.
+
+## Registre de la verificació del pilot
+
+Registres històrics que abans eren al document d'operació de l'agent. Els
+procediments vigents són a
+[`docs/operations/agent.md`](../../operations/agent.md).
+
+**Verificació al VPS.** Feta amb la identitat i la unitat instal·lades:
+
+1. Bot, supergrup privat amb temes i credencials de Telegram, model i GitHub
+   creats fora del repositori. La credencial de GitHub refusa escriure a
+   `.github/workflows` (403) i no té lectura d'administració, de manera que
+   l'agent no pot introduir ni modificar workflows. L'entorn `production`
+   limita el desplegament a les branques de la seva política
+   ([desplegament continu](../../operations/web-and-releases.md#entorn-github-production))
+   i l'entorn `previews` està restringit a `main`
+   ([previews](../../operations/previews.md#un-sol-workflow-disparat-sota-demanda)).
+2. Unitat, identitat `mountain-agent`, clon, eines, imatge fixada i volums
+   acotats instal·lats i mesurats; `ExecStartPre` verifica els volums.
+3. Aïllament comprovat amb la suite real del contenidor: 17 de 17 proves, sense
+   xarxa, sense credencials i amb un sol worktree d'escriptura. Els límits de
+   cgroup es van llegir del sistema i el cicle d'aturada i reinici està acotat;
+   el consum del procés `pause` es compta a la unitat i no al contenidor.
+4. Dependències offline dins de la imatge; `pnpm check` funciona sense xarxa.
+5. Pilot supervisat: la consulta respon sense crear branca i la tasca petita
+   arriba a una PR amb la identitat de l'agent, un sol commit i el diff
+   esperat. La PR del pilot és sintètica i no s'ha de fusionar.
+
+**Aturada amb un contenidor obert (11 de novembre de 2026).** Amb una unitat
+transitòria equivalent: `SIGKILL` al pont amb una ordre llarga oberta dins del
+contenidor, contenidor eliminat, cap procés ni registre residual i arrencada
+posterior neta. Els límits llegits del cgroup van ser 2560 M de memòria, 150 %
+de CPU i 384 tasques. El consum del procés `pause` es compta a la unitat, no al
+contenidor.
+
+**Comprovacions obligatòries de `main` (14 de novembre de 2026).** La protecció
+exigia set comprovacions amb la branca al dia: Validate, Conventional commits,
+Conventional title, Gitleaks, Dependency review, Analyze JavaScript and
+TypeScript i CodeQL.
+
+**Commit que constava instal·lat des del 22 de novembre de 2026.** `0a5722d`.
+
+**Estat de les proves de merge en aquell moment.** La pregunta i la confirmació «Sí, a
+producció» s'han provat amb Telegram i GitHub simulats, sense cap merge real. El
+merge demanat no s'ha provat amb una PR real: no està actiu fins que se'n
+verifiquin els controls, i la primera fusió requereix l'aprovació explícita de la
+persona mantenidora, segons l'ADR 0013.
+
+**Pendent de T8.6 en aquell moment.** Validació integral: dos autors al mateix tema,
+reconciliació d'un resultat desconegut real, aturada i rotació de credencials.
+La pertinença, la revocació, la reconciliació i la retenció ja estan definides
+(T8.5).

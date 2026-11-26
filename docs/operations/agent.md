@@ -20,39 +20,21 @@ Aturar el servei, arrencar-lo o actualitzar-lo requereix l'aprovació explícita
 la persona mantenidora. L'agent no desplega, no opera producció i no comparteix
 credencials amb les releases, Caddy ni les previews.
 
-## Com funciona
-
-L'agent és una aplicació que porta una petició de Telegram fins a una PR. Les
-eines viuen a `tools/server/agent/`; el nucli reutilitzable, la disposició del
-codi i el recorregut d'una petició són a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md).
-
-| Component           | Accés                                                                                                                                | Límit                                                                                                                                                                                                                                                                              |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                                         | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                                                                                                                                                                                                  |
-| Pi i model          | Credencial del proveïdor i sessions per tema                                                                                         | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori                                                                                                                                                                                          |
-| Entorn aïllat       | Worktree de la feina                                                                                                                 | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker                                                                                                                                                                                        |
-| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR, lectura de la CI del commit publicat i el merge demanat | Sense auto-merge, push a `main`, canvis de protecció ni desplegament; l'únic merge és el squash demanat amb `/merge` o confirmat amb «Sí, a producció» a la pregunta del servei, amb el detall al [README del component](../../tools/server/agent/README.md#merge-demanat-al-tema) |
-
-El detall de la frontera, amb l'aïllament del sandbox, la llista blanca d'entorn,
-l'escaneig de secrets i els terminis, és a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#fronteres-de-confiança).
-
 ## Com s'opera
 
 ### Identitat i peces
 
-| Peça                      | Valor                                                                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Unitat                    | `mountain-agent.service`, instal·lada a `/etc/systemd/system/` des de `tools/server/systemd/mountain-agent.service`                 |
-| Identitat del servei      | Usuari i grup `mountain-agent`, sense shell; `UMask=0077`                                                                           |
-| Codi instal·lat           | `/usr/local/lib/mountain-runners/agent/` i el paquet `/usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge/`             |
-| Estat i treball           | `/var/lib/mountain-runners-agent/` (`0700`) amb `repository/`, `worktrees/`, `sessions/`, `state/` i `tmp/`                         |
-| Volums                    | Dos ext4 preassignats: 11 GiB per a Podman, repositori i worktrees, i 1 GiB per a la cua, la traça i l'estat                        |
-| Configuració              | `/etc/mountain-runners-agent/agent.env` (`0600`), amb el directori `/etc/mountain-runners-agent/` (`0750` de `root:mountain-agent`) |
-| Imatge de l'entorn aïllat | Fixada amb `MOUNTAIN_AGENT_SANDBOX_IMAGE`; sense l'etiqueta `latest` i present al magatzem local de Podman abans d'arrencar         |
-| Model                     | `MOUNTAIN_AGENT_MODEL`; si no s'informa, el servei usa `opencode-go/glm-5.3-flash`                                                  |
-| Límits de la unitat       | 1,5 CPU, 2560 MiB, 384 tasques i `TimeoutStopSec=30`                                                                                |
+| Peça                      | Valor                                                                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unitat                    | `mountain-agent.service`, instal·lada a `/etc/systemd/system/` des de `tools/server/systemd/mountain-agent.service`                                                   |
+| Identitat del servei      | Usuari i grup `mountain-agent`, sense shell; `UMask=0077`                                                                                                             |
+| Codi instal·lat           | `/usr/local/lib/mountain-runners/agent/` i el paquet `/usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge/`                                               |
+| Estat i treball           | `/var/lib/mountain-runners-agent/` (`0700`) amb `repository/`, `worktrees/`, `sessions/`, `state/` i `tmp/`                                                           |
+| Volums                    | Dos ext4 preassignats: 11 GiB per a Podman, repositori i worktrees, i 1 GiB per a la cua, la traça i l'estat                                                          |
+| Configuració              | `/etc/mountain-runners-agent/agent.env` (`0600`), amb el directori `/etc/mountain-runners-agent/` (`0750` de `root:mountain-agent`)                                   |
+| Imatge de l'entorn aïllat | Fixada amb `MOUNTAIN_AGENT_SANDBOX_IMAGE`, sense l'etiqueta `latest`, i present al magatzem local de Podman abans d'arrencar: el sandbox s'executa amb `--pull=never` |
+| Model                     | `MOUNTAIN_AGENT_MODEL`; si no s'informa, el servei usa `opencode-go/glm-5.3-flash`                                                                                    |
+| Límits de la unitat       | 1,5 CPU, 2560 MiB, 384 tasques i `TimeoutStopSec=30`                                                                                                                  |
 
 El VPS usa Node 24.22.3 del repositori apt `node_24.x` de NodeSource. La versió
 de Node és la mateixa a `.node-version`, al VPS i a la imatge del sandbox, i les
@@ -94,13 +76,14 @@ propietat de la identitat del servei. La instal·lació prevista és:
 └── telegram-pi-bridge/                    paquet intern, sense node_modules propi
 ```
 
-`MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`. La imatge de
-l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`.
+`MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`: el servei refusa
+altres valors. `MOUNTAIN_AGENT_SANDBOX_IMAGE` és obligatòria i s'hi fixa una
+imatge local concreta, mai `latest`.
 
 `MOUNTAIN_AGENT_REQUIRED_CHECKS` és obligatori i conté, separats per comes, els
-noms exactes de les comprovacions obligatòries de `main`. Verificat el 14 de
-novembre de 2026, la protecció de `main` exigeix aquestes set comprovacions amb
-la branca al dia:
+noms exactes de les comprovacions obligatòries de `main`. La llista ha de
+coincidir amb la protecció de `main`, que exigeix la branca al dia. El valor
+de referència és el de `.env.example`:
 
 ```text
 Validate, Conventional commits, Conventional title, Gitleaks, Dependency review, Analyze JavaScript and TypeScript, CodeQL
@@ -229,8 +212,8 @@ root. Si s'havia seguit una versió anterior del procediment, cal retirar la
 pertinença al grup Docker abans d'activar el servei. La instal·lació ha de
 comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'`
 retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
-delegat de la unitat. Al VPS aquestes comprovacions consten a
-[la verificació al VPS](#verificació-al-vps).
+delegat de la unitat. El registre de la verificació feta al VPS és a
+[l'especificació de la fase 8](../specs/phase-8/phase-8-editorial-assistance.md#registre-de-la-verificació-del-pilot).
 
 La imatge aïllada ha d'incloure Node 24.22.3, pnpm, git, Chromium, `sharp` de
 `apps/web` i les altres dependències que necessita `pnpm check`, perquè el
@@ -283,12 +266,6 @@ enrere, repeteix el procediment amb `@<versió anterior>` en lloc de `@latest`. 
 versió anterior és a la línia `pi_version` de l'arrencada anterior
 (`sudo journalctl -u mountain-agent -g pi_version`).
 
-**Migració, una sola vegada.** La instal·lació actual és a
-`/usr/local/lib/mountain-runners/pi-1.5.2`. Segueix el mateix procediment per
-instal·lar al directori nou i, abans d'arrencar, canvia
-`MOUNTAIN_AGENT_PI_COMMAND` a `agent.env`. Conserva el directori antic fins que
-hagis verificat el nou; mentrestant, tornar enrere és restaurar el camí anterior.
-
 ### Activar, aturar i reiniciar
 
 ```sh
@@ -331,12 +308,6 @@ muntatges segons la
 [instal·lació prevista](#installació-prevista) i no tornis a
 formatar cap volum amb dades.
 
-Verificat al VPS l'11 de novembre de 2026 amb una unitat transitòria equivalent:
-`SIGKILL` al pont amb una ordre llarga oberta dins del contenidor, contenidor
-eliminat, cap procés ni registre residual i arrencada posterior neta. Els límits
-llegits del cgroup van ser 2560 M de memòria, 150 % de CPU i 384 tasques. El
-consum del procés `pause` es compta a la unitat, no al contenidor.
-
 ### Actualitzar
 
 L'actualització la fa una persona operadora o una sessió local d'agent d'IA, en
@@ -355,7 +326,7 @@ substitució i la verificació, i no arrenca mai el servei.
 que controla la persona operadora, mai del clon que escriu el servei. Al VPS:
 
 ```sh
-cd /srv/mountain-runners   # un clon de la persona operadora, no el del servei
+cd <clon-de-la-persona-operadora>   # no el clon del servei
 sudo git fetch origin main
 sudo git checkout --detach origin/main
 sudo git status --porcelain   # ha de sortir buit
@@ -374,18 +345,17 @@ commits s'escriuen sencers, amb 40 caràcters hexadecimals: `git rev-parse
 
 ```sh
 sudo node tools/server/agent/commands/update/cli.mjs \
-  --repository /srv/mountain-runners \
+  --repository <clon-de-la-persona-operadora> \
   --commit <commit>
 ```
 
 **Primera execució.** Mentre no hi hagi cap `REVISION` enregistrat cal
-declarar el commit instal·lat, amb el SHA complet; al VPS és `0a5722d` des del
-22 de novembre de 2026:
+declarar el commit instal·lat, amb el SHA complet:
 
 ```sh
-sudo git -C /srv/mountain-runners rev-parse 0a5722d
+sudo git -C <clon-de-la-persona-operadora> rev-parse <commit instal·lat>
 sudo node tools/server/agent/commands/update/cli.mjs \
-  --repository /srv/mountain-runners \
+  --repository <clon-de-la-persona-operadora> \
   --commit <commit> --installed <sha complet del commit instal·lat>
 ```
 
@@ -449,57 +419,80 @@ Cal fer-ho quan l'ordre refusa pel pas 4. Atura el servei: `podman rmi` falla
 mentre un contenidor la fa servir i un torn nou pot començar entre la comprovació
 de l'ordre i la reconstrucció. La imatge es construeix com `mountain-agent`, dins
 del cgroup de la unitat transitòria, amb el seu magatzem local de Podman i els
-seus rangs de `subuid` i `subgid`; mai amb `sudo podman`. Desa primer la imatge
-actual per poder tornar enrere:
+seus rangs de `subuid` i `subgid`; mai amb `sudo podman`.
+
+El `Containerfile` fixa la imatge base per digest. Podman pot desar-la sense
+etiqueta. `--pull=never` impedeix descarregar la base durant la construcció: la
+base ha de ser al magatzem local abans de construir. La construcció **sí que
+necessita xarxa**, perquè el `Containerfile` prepara Corepack i pnpm,
+executa `pnpm fetch` i instal·la Chromium amb Playwright. Només l'execució del
+sandbox i les comprovacions sobre la imatge ja preparada són sense xarxa.
+
+No facis cap neteja global d'imatges (`podman image prune`, `podman system
+prune`, `podman rmi --all`): una imatge sense etiqueta com la base pot comptar com a
+sobrant i desaparèixer, i la construcció següent falla amb `--pull=never`. Elimina
+només la imatge del sandbox prevista i conserva la base amb `--no-prune`, que
+evita que Podman retiri també les imatges pare sense etiqueta.
+
+Desa primer la imatge actual per poder tornar enrere:
 
 ```sh
-# Com a root. <imatge-actual> i <imatge-nova> són les etiquetes locals, per
-# exemple localhost/mountain-agent:<commit>.
+# Com a root. Substitueix els quatre valors d'exemple abans d'executar-ho.
 set -eu
-systemctl stop mountain-agent
+umask 077
 A=/var/lib/mountain-runners-agent
 B=/var/backups/mountain-runners-agent
+CLON='/camí/absolut/al/clon-operador'
+COMMIT='sha-complet-del-commit-revisat'
+IMATGE_ACTUAL='localhost/mountain-agent:commit-instal·lat'
+IMATGE_NOVA='localhost/mountain-agent:commit-revisat'
 pm() {
   systemd-run --pipe --wait --quiet --uid=mountain-agent --gid=mountain-agent \
     -p RuntimeDirectory=mountain-runners-agent -p RuntimeDirectoryMode=0700 \
     -E HOME=$A -E TMPDIR=$A/tmp -E XDG_RUNTIME_DIR=/run/mountain-runners-agent \
     --working-directory="${WD:-$A}" podman --remote=false --cgroup-manager=cgroupfs "$@"
 }
-install -d -m 0700 "$B"
-# 1. Desa la imatge actual; la reversió la torna a carregar amb podman load.
-pm save --format oci-archive <imatge-actual> \
-  > "$B/mountain-agent-<commit-instal·lat>.oci.tar"
-chmod 0600 "$B/mountain-agent-<commit-instal·lat>.oci.tar"
-# 2. Allibera el volum de treball abans de construir-ne una de nova.
-pm rmi <imatge-actual>
-pm image prune -f
-df -h "$A"
-# 3. Munta el context del commit revisat fora del volum de l'agent: el crea
-#    root i el servei només el pot llegir.
+# 1. Extreu el context del commit revisat. Root el crea i el servei només el
+#    pot llegir. La imatge base surt d'aquest mateix context.
 CONTEXT=$(mktemp -d /var/tmp/mountain-agent-build.XXXXXXXX)
 chmod 0755 "$CONTEXT"
 git -c core.attributesFile=/dev/null -c core.fsmonitor=false \
-  -c core.hooksPath=/dev/null \
-  -C /srv/mountain-runners archive <commit> | tar -x -C "$CONTEXT"
+  -c core.hooksPath=/dev/null -C "$CLON" archive "$COMMIT" | tar -x -C "$CONTEXT"
 chmod -R a+rX,go-w "$CONTEXT"
-# 4. Construeix sense xarxa: el contenidor no en té i tot arriba al store local.
+runuser -u mountain-agent -- test -r "$CONTEXT/package.json"
+BASE=$(sed -n 's|^FROM node:\(.*@sha256:[0-9a-f]*\)$|docker.io/library/node:\1|p' \
+  "$CONTEXT/tools/server/agent/sandbox/Containerfile")
+test -n "$BASE"
+# 2. Atura el servei i comprova la base abans de retirar la imatge actual.
+systemctl stop mountain-agent
+pm image exists "$BASE" || pm pull "$BASE"
+install -d -m 0700 "$B"
+# 3. Desa la imatge actual; la reversió la torna a carregar amb podman load.
+ARXIU="$B/mountain-agent-${IMATGE_ACTUAL##*:}.oci.tar"
+pm save --format oci-archive "$IMATGE_ACTUAL" > "$ARXIU"
+chmod 0600 "$ARXIU"
+# 4. Allibera espai: elimina només la imatge del sandbox i conserva la base.
+pm rmi --no-prune "$IMATGE_ACTUAL"
+df -h "$A"
+# 5. Construeix amb xarxa (pnpm fetch i Playwright). --pull=never no descarrega
+#    la base: ja és al magatzem local.
 WD="$CONTEXT" pm build --pull=never \
-  -f tools/server/agent/sandbox/Containerfile -t <imatge-nova> .
-pm image inspect <imatge-nova> --format "{{.Id}}"
-# 5. Neteja el context.
+  -f tools/server/agent/sandbox/Containerfile -t "$IMATGE_NOVA" .
+pm image inspect "$IMATGE_NOVA" --format '{{.Id}}'
+# 6. Neteja el context.
 rm -rf "$CONTEXT"
 ```
+
+Si l'espai del volum de treball no basta ni després d'eliminar la imatge del
+sandbox, no executis cap neteja global: decideix amb la persona mantenidora
+quines imatges concretes es poden retirar.
 
 `systemd-run --working-directory` fixa el directori de treball del `podman build`,
 que s'executa com `mountain-agent`: ha de poder travessar i llegir el context, i
 no l'ha de poder modificar. Per això viu fora de
 `/var/lib/mountain-runners-agent`, en un `mktemp -d` de root amb directoris
 `0755` i fitxers `0644`, i per això el volum de l'agent no rep cap ordre de root
-que hi escrigui ni que hi esborri res. Comprova-ho abans de construir:
-
-```sh
-runuser -u mountain-agent -- test -r "$CONTEXT/package.json"
-```
+que hi escrigui ni que hi esborri res.
 
 No hi ha cap `rm -rf`, `install` ni `tar` de root dins del volum de l'agent.
 
@@ -570,10 +563,11 @@ sudo cat "$A" | sudo runuser -u mountain-agent -- tar -tf - >/dev/null &&
 ```
 
 Si no tens ni aquesta còpia ni les bases `*.sqlite.migrated` que necessita la
-versió anterior, no tornis enrere sense aprovació explícita. Arrenca el
-servei i repeteix la comprovació. Si la imatge del sandbox va canviar, torna a
-carregar la còpia amb `podman load`, apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` i
-no esborris l'arxiu fins que la reversió estigui verificada.
+versió anterior, no tornis enrere sense aprovació explícita. Si la imatge del
+sandbox va canviar, torna a carregar la còpia amb `podman load` al magatzem de
+`mountain-agent` i apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar.
+Arrenca el servei i repeteix la comprovació. Conserva l'arxiu fins que la
+reversió estigui verificada.
 
 #### Tornar a les bases separades
 
@@ -593,9 +587,10 @@ sudo runuser -u mountain-agent -- sh -ceu '
 Una versió posterior torna a importar les bases en arrencar. Si en queda cap al
 costat d'un `agent.sqlite` que no l'ha importada tal com és, l'arrencada i la
 reconciliació es refusen: no esborris res fins a decidir quin estat és el bo.
-També es refusen si no hi ha `agent.sqlite` però en queda el
-`agent.sqlite-journal`, `-wal` o `-shm`: SQLite l'aplicaria a la base nova i en
-perdria dades. Esborra aquests fitxers i repeteix.
+Si cal importar les bases antigues, el servei també refusa quan falta
+`agent.sqlite` però en queda el `-journal`, `-wal` o `-shm`. No els apliquis a
+una base nova. Conserva'ls en una còpia i resol quin estat cal recuperar abans
+de repetir l'arrencada.
 
 #### Assajar la migració de l'estat
 
@@ -614,7 +609,7 @@ incoherent. El codi del commit es munta amb la disposició instal·lada:
 set -eu
 W=$(mktemp -d /var/tmp/mountain-agent-migrate.XXXXXXXX)
 chmod 0755 "$W"
-git -c core.attributesFile=/dev/null -C /srv/mountain-runners archive <commit> \
+git -c core.attributesFile=/dev/null -C <clon-de-la-persona-operadora> archive <commit> \
   tools/server/agent packages/telegram-pi-bridge | tar -x -C "$W"
 mkdir "$W/node_modules"
 mv "$W/packages/telegram-pi-bridge" "$W/node_modules/"
@@ -734,7 +729,7 @@ reintent d'un avís les consulta, i la mida és d'unes poques desenes de bytes p
 efecte.
 
 Els worktrees segueixen la política de retenció descrita a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#sessions-admissió-i-recuperació),
+[`tools/server/agent/README.md`](../../tools/server/agent/README.md#retenció-de-worktrees),
 que conserva sempre el treball no fusionat, no publicat o sense cometre i
 allibera les dependències generades dels temes tancats. La comanda
 `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
@@ -776,7 +771,7 @@ Treure una persona del grup talla les instruccions noves i no
 cancel·la la feina ja acceptada. Per tallar-ho tot, atura el servei; per
 revocar una credencial, fes la [rotació](#rotació-de-credencials). El detall de
 què continua i què es torna a comprovar és a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#sessions-admissió-i-recuperació).
+[`tools/server/agent/README.md`](../../tools/server/agent/README.md#revocació).
 
 ### Consulta de la traça privada
 
@@ -958,7 +953,7 @@ MR_AGENT_PI_COMMAND=<executable-pi> node --test tools/server/agent/runtime/profi
 ```
 
 L'abast de cada prova i l'execució des de l'arrel són a
-[Proves i fonts de veritat](../../tools/server/agent/README.md#proves-i-fonts-de-veritat).
+[Proves i fonts de veritat](../../tools/server/agent/README.md#proves).
 Una prova simulada no demostra els permisos reals de GitHub ni l'aïllament al
 VPS.
 
@@ -1004,17 +999,22 @@ segueixen la mateixa retenció privada que la resta de la sessió.
 
 Quan el tema indiqui que el canvi espera revisió, obre una terminal privada al
 VPS com a persona operadora autoritzada. Fes servir el repositori del servei i
-el directori `research-review` sota el seu directori d'estat. No copiïs la
-sortida a la PR. L'ordre sense accés a GitHub mostra l'historial nou i les
-metadades que es farien públiques:
+el directori `research-review` sota el seu directori d'estat. Executa les ordres
+com a `mountain-agent` i no carreguis `agent.env`. No copiïs la sortida a la PR.
+L'ordre no fa peticions a GitHub. `status` mostra l'estat de la
+feina i `show` l'historial nou i les metadades que es farien públiques:
 
 ```sh
-node /usr/local/lib/mountain-runners/agent/commands/research-review/cli.mjs \
+sudo -u mountain-agent -- /usr/bin/node \
+  /usr/local/lib/mountain-runners/agent/commands/research-review/cli.mjs \
+  status <directori-revisions> <repositori> <feina>
+sudo -u mountain-agent -- /usr/bin/node \
+  /usr/local/lib/mountain-runners/agent/commands/research-review/cli.mjs \
   show <directori-revisions> <repositori> <feina> <revisió>
 ```
 
-Si la còpia és publicable, executa la mateixa ordre amb `approve` i confirma
-l'identificador que mostra. L'ordre no fa push. Respon `/publica-revisio`
+Si la còpia és publicable, executa la mateixa ordre amb `approve` en un
+terminal interactiu i tecleja l'identificador de la revisió per confirmar. L'ordre no fa push. Respon `/publica-revisio`
 directament a un missatge del bot al tema per tornar a provar la publicació.
 Si el servei informa d'una revisió nova, torna a revisar-la. Una feina sense
 registre de recerca que conserva el worktree o la vinculació també exigeix
@@ -1101,18 +1101,17 @@ de la persona mantenidora consta a l'especificació.
      configuració i torna a començar la validació.
 2. **Flux bàsic.**
    - Fer: al tema, fes una consulta sobre el codi i després una implementació
-     petita fins a PR, per exemple una correcció de documentació. Espera l'avís
-     de CI. Després demana una notícia curta amb una foto i, quan estigui a punt,
-     demana-la publicada amb «publica-la».
+     petita fins a PR, per exemple una correcció de documentació. Comprova les
+     verificacions obligatòries a GitHub. Després demana una notícia curta amb
+     una foto i, quan estigui a punt, demana-la publicada amb «publica-la».
    - Esperat: la consulta respon sense crear cap branca i sense rutes, noms de
      fitxer, camps YAML, ordres, recomptes de proves, commits ni noms de
      comprovació, i fa com a màxim una pregunta. La implementació crea una
      branca, un sol commit i una PR amb la identitat de l'agent. El tema rep la
      resposta del model, una línia curta que diu que el canvi s'està comprovant i
-     l'enllaç de revisió com a darrera línia. Amb les comprovacions obligatòries
-     en verd arriba un sol avís, i no un missatge per la PR, pel seguiment i
-     pel verd. Quan el publicador confirma la preview del commit, arriba un
-     altre avís amb la seva adreça. La notícia es crea com a
+     l'enllaç de revisió com a darrera línia. El verd consta a la traça i no
+     genera un segon missatge. Quan el publicador confirma la preview del
+     commit, arriba un altre avís amb la seva adreça. La notícia es crea com a
      esborrany; «publica-la» la marca com a publicada amb l'hora de la petició,
      que és la seva aprovació editorial. El merge continua sent humà. Sense
      petició no s'escriuen les variants en castellà ni en anglès.
@@ -1221,40 +1220,3 @@ de la persona mantenidora consta a l'especificació.
     - Si falla: si producció o una preview ha canviat, atura el servei i revisa
       Caddy abans de res més; no despleguis ni reiniciïs producció sense
       aprovació.
-
-### Verificació al VPS
-
-Verificat al VPS amb la identitat i la unitat instal·lades:
-
-1. Bot, supergrup privat amb temes i credencials de Telegram, model i GitHub
-   creats fora del repositori. La credencial de GitHub refusa escriure a
-   `.github/workflows` (403) i no té lectura d'administració, de manera que
-   l'agent no pot introduir ni modificar workflows. L'entorn `production`
-   limita el desplegament a les branques de la seva política
-   ([desplegament continu](web-and-releases.md#entorn-github-production)) i
-   l'entorn `previews` està restringit a `main`
-   ([previews](previews.md#un-sol-workflow-disparat-sota-demanda)).
-2. Unitat, identitat `mountain-agent`, clon, eines, imatge fixada i volums
-   acotats instal·lats i mesurats; `ExecStartPre` verifica els volums.
-3. Aïllament comprovat amb la suite real del contenidor: 17 de 17 proves, sense
-   xarxa, sense credencials i amb un sol worktree d'escriptura. Els límits de
-   cgroup es van llegir del sistema i el cicle d'aturada i reinici està acotat;
-   el consum del procés `pause` es compta a la unitat i no al contenidor.
-4. Dependències offline dins de la imatge; `pnpm check` funciona sense xarxa.
-5. Pilot supervisat: la consulta respon sense crear branca i la tasca petita
-   arriba a una PR amb la identitat de l'agent, un sol commit i el diff
-   esperat. La PR del pilot és sintètica i no s'ha de fusionar.
-
-Pendent per a les entregues següents:
-
-- Validació integral a T8.6: dos autors al mateix tema, reconciliació d'un
-  resultat desconegut real, aturada i rotació de credencials documentades en
-  aquest document. La pertinença, la revocació, la reconciliació i la retenció ja estan
-  definides (T8.5).
-
-Aquestes validacions es completen sobre el servei en marxa. L'agent de Telegram
-no desplega mai res. La pregunta i la confirmació «Sí, a producció» s'han provat
-amb Telegram i GitHub simulats, sense cap merge real. El merge demanat encara no
-s'ha provat amb una PR real: no està actiu fins que se'n verifiquin els controls,
-i la primera fusió requereix l'aprovació explícita de la persona mantenidora,
-segons l'ADR 0013.

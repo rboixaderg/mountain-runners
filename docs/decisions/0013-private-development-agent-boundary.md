@@ -1,5 +1,60 @@
 # ADR 0013: Frontera de l'agent privat de desenvolupament
 
+## Decisió vigent
+
+Aquest resum recull la frontera tal com queda amb totes les esmenes. Els
+apartats següents conserven l'historial i el detall dels controls acceptats.
+
+- **Qui i què.** Una persona membre verificada del grup privat de Telegram
+  demana canvis en llenguatge natural. Un tema té una sola feina i una sola PR.
+  El servei no classifica les peticions ordinàries: obre un torn amb escriptura
+  al worktree del tema. Les ordres i confirmacions tenen tractament determinista.
+- **Què pot fer el servei.** Commit, push a la branca de treball, obrir o
+  continuar la PR i posar-hi l'etiqueta `preview`. No fa auto-merge, push a
+  `main`, canvis de protecció ni desplegament. Les sessions locals i la resta
+  d'agents mantenen les regles d'`AGENTS.md`.
+- **Preview.** El servei només posa l'etiqueta `preview` a la PR que crea. El
+  publicador de la fase 6 construeix el cap i confirma l'adreça. El servei no
+  comenta `/preview`.
+- **Merge demanat.** Una persona verificada l'autoritza amb `/merge`,
+  `/merge <PR>` o `/merge <PR> <SHA>`. També pot respondre «La feina està
+  validada» directament a l'avís vigent de la preview. En aquest cas, només
+  «Sí, a producció» en resposta directa de la mateixa persona a la pregunta
+  del servei autoritza la PR i el SHA fixats. El servei torna a comprovar la
+  pertinença i només fusiona amb squash el SHA de la preview confirmada i
+  lliurada, amb la branca al dia i les comprovacions obligatòries en verd,
+  sense excepcions d'administrador. Si la branca requereix sincronització,
+  cal una preview nova i una nova autorització. Tancar un resultat desconegut
+  requereix consultar GitHub i no pot desencadenar cap merge.
+- **Límit del merge.** El servei refusa la PR que canvia infraestructura:
+  fitxers a l'arrel o directament a `apps/web/`; `tools/`, `packages/`,
+  `apps/web/scripts/` i `apps/web/project.inlang/`; qualsevol camí amb un segment
+  que comenci per punt; `package.json`, `tsconfig*.json` i `*.config.*`. Comprova
+  tots dos noms dels reanomenaments. També
+  refusa enllaços simbòlics, submòduls i fitxers executables. La persona
+  mantenidora fusiona aquestes PR a GitHub.
+- **CI.** El servei llegeix la CI del SHA publicat i avisa el tema. No
+  reexecuta jobs ni repara la CI. No requereix `Actions: write`. Els avisos
+  de Telegram es poden repetir després d'un lliurament desconegut
+  ([ADR 0014](0014-operator-stop-and-repeatable-telegram-notices.md)).
+- **Credencials i sandbox.** La credencial de GitHub requereix `Contents: write`
+  i `Pull requests: write`, no `Workflows` ni escriptura d'`Actions`. Cap
+  credencial arriba al sandbox, que no té xarxa.
+- **Cerca web.** El servei pot consultar Brave i llegir pàgines públiques fora
+  del sandbox i aplica el control de divulgació abans de contactar cap destí.
+  Una feina que ha rebut recerca no fa push fins que una persona
+  autoritzada n'aprova en privat el candidat exacte. Això no autoritza cap
+  merge.
+- **Operació.** Aturar l'execució activa és de la persona operadora. El servei
+  s'instal·la i s'actualitza a mà des d'un commit revisat de `main`, amb
+  l'aprovació explícita de la persona mantenidora a la conversa local.
+- **Activació.** Un control només s'activa un cop verificat; l'acceptació d'una
+  esmena no activa cap permís.
+
+El comportament implementat és a
+[`tools/server/agent/README.md`](../../tools/server/agent/README.md) i els
+procediments, a [`docs/operations/agent.md`](../operations/agent.md).
+
 ## Estat
 
 Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
