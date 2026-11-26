@@ -89,15 +89,15 @@ i no introdueix cap servei extern ni canvia Plausible.
 
 ## Límits De L'Arquitectura
 
-| Àrea                            | Responsabilitat                                               | Límit                                                                                                                                                                                                            |
-| ------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica                    | Renderitzar contingut editorial publicat                      | El build d'Astro no conté secrets                                                                                                                                                                                |
-| Contingut                       | Pàgines estructurades i dades de l'associació                 | Versionat a Git i revisat per pull request                                                                                                                                                                       |
-| Xat públic                      | Respondre preguntes sobre contingut publicat                  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                      |
-| Assistent editorial             | Preparar canvis de contingut                                  | Flux privat de branca, validació i pull request                                                                                                                                                                  |
-| Agent privat de desenvolupament | Consultar i preparar canvis de codi o contingut fins a una PR | Component de confiança amb la credencial de GitHub; entorn aïllat sense xarxa ni credencials; sense desplegament, auto-merge ni push a `main` ([ADR 0013](decisions/0013-private-development-agent-boundary.md)) |
-| Allotjament                     | Servir la web estàtica i serveis aïllats                      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                      |
-| Analítica                       | Mesurar visites agregades de la web pública                   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md))      |
+| Àrea                            | Responsabilitat                                               | Límit                                                                                                                                                                                                       |
+| ------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica                    | Renderitzar contingut editorial publicat                      | El build d'Astro no conté secrets                                                                                                                                                                           |
+| Contingut                       | Pàgines estructurades i dades de l'associació                 | Versionat a Git i revisat per pull request                                                                                                                                                                  |
+| Xat públic                      | Respondre preguntes sobre contingut publicat                  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                 |
+| Assistent editorial             | Preparar canvis de contingut                                  | Flux privat de branca, validació i pull request                                                                                                                                                             |
+| Agent privat de desenvolupament | Consultar i preparar canvis de codi o contingut fins a una PR | [Frontera i permisos vigents](decisions/0013-private-development-agent-boundary.md#decisió-vigent)                                                                                                          |
+| Allotjament                     | Servir la web estàtica i serveis aïllats                      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                 |
+| Analítica                       | Mesurar visites agregades de la web pública                   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) |
 
 ## Estructura De Pàgines I Presentació
 
@@ -135,82 +135,16 @@ publicades; els components no consulten les col·leccions.
 
 ## Agent Privat De Desenvolupament
 
-La fase 8 prepara un servei privat al VPS, separat de producció, accessible des
-d'un grup de Telegram amb temes de fòrum
-([ADR 0013](decisions/0013-private-development-agent-boundary.md)). Cada tema és
-una sessió de conversa; el treball viu a Git, a les especificacions i als ADR,
-no en un gestor de tasques.
+L'agent de la fase 8 és un servei privat al VPS, separat de la web de producció
+i accessible des d'un grup privat de Telegram.
 
-La frontera separa un component de confiança, que gestiona Telegram, el model i
-les operacions de GitHub, de l'entorn aïllat que executa scripts, hooks,
-dependències i proves del repositori. Només el component de confiança rep la
-credencial de GitHub i només exposa la branca de treball, la PR i el merge
-demanat amb `/merge <PR>` o confirmat amb «Sí, a producció» a la pregunta del
-servei. L'entorn aïllat no llegeix credencials ni sessions i no té xarxa per
-defecte.
-
-L'agent no desplega, no fa push a `main`, no activa auto-merge i no modifica
-proteccions. El merge continua sent una decisió humana: l'executa només amb la
-petició explícita d'un membre verificat o la seva resposta «Sí, a producció» a
-la pregunta fixa que segueix la validació «La feina està validada», fixada a la
-PR i el commit de l'avís vigent de la preview confirmada i amb les comprovacions
-obligatòries en verd. La preview no es demana: el
-servei posa l'etiqueta `preview` a la PR, segons
-l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
-
-La T8.3 separa el nucli Telegram i Pi a
-[`packages/telegram-pi-bridge`](../packages/telegram-pi-bridge/README.md):
-transport, autorització, cua duradora, identitat per tema i protocol RPC. És un
-paquet ESM intern amb API estreta i proves pròpies, sense dependències npm ni
-coneixement de GitHub, Docker o les regles del projecte.
-Les entrades `/telegram`, `/sessions` i `/pi` es carreguen per separat. Importar
-només `/pi` no carrega Telegram ni SQLite.
-
-L'aplicació de `tools/server/agent/` consumeix el paquet i li proporciona
-`runInstruction`. `policy/development.mjs` conté les regles pures de prompts,
-comprovació i metadades públiques. `workflow/project-runner.mjs`
-les connecta amb les integracions. El coordinador `workflow/run-instruction.mjs`
-rep operacions i rutes, sense tokens ni clients de Docker o GitHub. El perfil
-de confiança, l'entorn aïllat i Git/GitHub continuen fora del paquet. El transport RPC no hereta l'entorn
-secret del servei ni activa eines per defecte; l'adaptador del projecte tria
-explícitament `sandbox_bash` i la neteja dels contenidors. Pi manté la credencial del proveïdor al host i no té
-la `bash` del host: l'execució passa per l'extensió `sandbox_bash` i pel mateix
-constructor d'arguments que el component de confiança. Tampoc exposa eines
-natives de fitxers del host ni carrega automàticament context o skills del
-repositori: el model els llegeix dins del contenidor. Cada missatge ordinari
-executa un torn amb escriptura al worktree del tema, que té una sola feina; si
-hi ha canvis o feina pendent, el servei els publica quan passen les
-comprovacions i, si la feina ha rebut recerca, la revisió privada. Els errors locals
-coneguts no bloquegen la cua; els resultats remots incerts i les aturades de
-contenidors no confirmades sí que la bloquegen. La sortida del sandbox i la
-del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.
-
-El servei executa Podman local sense root, amb un espai d'usuari que conserva
-l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
-socket de contenidors del host. La unitat delega el seu cgroup al runtime;
-Podman sense root i els límits s'han verificat al VPS.
-
-El component de Git selecciona explícitament metadades fora del muntatge,
-rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
-i fsmonitor desactivats i sense heretar els secrets del pont. Un worktree net
-només es reinicia quan no conté commits propis pendents de publicació
-confirmada. La comparació d'ascendència evita confondre un `main` antic amb
-feina pròpia no publicada. Sense un resum vàlid del model, els noms públics
-usen un text neutre i l'identificador de l'update, mai el text privat de Telegram.
-Abans del push s'inspeccionen els objectes nous de tot l'historial de
-`origin/main..HEAD`, incloses versions esborrades i missatges de commit. Un
-objecte il·legible o que supera el pressupost refusa la publicació. Els canvis
-a `.github/**` i `CODEOWNERS` es rebutgen en qualsevol commit del rang. La
-credencial prevista no té el permís `Workflows: write`. El push publica
-exactament el SHA inspeccionat, sense forçar-lo. El
-[mapa de mòduls](../tools/server/agent/README.md) diferencia el nucli
-reutilitzable de l'aplicació i les seves fronteres. El merge demanat o confirmat
-i la petició delegada de preview continuen fora d'aquesta base (T8.4).
-
-El servei està instal·lat i en marxa al VPS, amb el bot, el grup privat i les
-credencials de la fase 8. La instal·lació, la configuració, els límits i les
-comprovacions són a
-[`docs/operations/agent.md`](operations/agent.md).
+- [Mapa de l'agent privat](phase-8-system-map.html): components i connexions.
+- [README de l'agent](../tools/server/agent/README.md): comportament implementat,
+  recorregut d'una petició i estat de l'aplicació.
+- [ADR 0013](decisions/0013-private-development-agent-boundary.md#decisió-vigent):
+  frontera de confiança, permisos i controls del merge.
+- [Operació de l'agent](operations/agent.md): instal·lació, actualització,
+  verificació i recuperació.
 
 ## Xat Públic, Més Endavant
 
