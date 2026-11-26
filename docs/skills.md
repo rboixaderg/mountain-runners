@@ -34,16 +34,17 @@ fixades o que carreguin contingut a serveis externs.
 
 ## Skills Pròpies
 
-| Skill                        | Propòsit                                                                                                      |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `editorial-posts`            | Preparar i revisar esborranys de notícies i blog, amb publicació només a petició d'un membre verificat.       |
-| `frontend-testing`           | Triar, escriure i revisar els nivells de prova de la web estàtica i valorar-ne la redundància.                |
-| `plausible-analytics`        | Consultar l'analítica de `mountainrunners.cat` per l'API de només lectura de Plausible.                       |
-| `project-context`            | Carregar la documentació que governa el projecte abans de proposar o canviar res.                             |
-| `quality-gate`               | Aplicar el gate local de les pàgines públiques: documents, ordres, rutes i llindars de Lighthouse.            |
-| `spec-authoring`             | Redactar especificacions de fase, funcionalitat o tasca segons la convenció del projecte.                     |
-| `spec-implementation-review` | Revisar una implementació contra una tasca de l'especificació amb agents independents i sense modificar codi. |
-| `unslop`                     | Treure els patrons de redacció d'IA del text, amb un mode tècnic per a documents i procediments.              |
+| Skill                                                         | Propòsit                                                                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [`docs-ownership`](../.agents/skills/docs-ownership/SKILL.md) | Identificar el document propietari abans d'editar documentació.                                               |
+| `editorial-posts`                                             | Preparar i revisar esborranys de notícies i blog, amb publicació només a petició d'un membre verificat.       |
+| `frontend-testing`                                            | Triar, escriure i revisar els nivells de prova de la web estàtica i valorar-ne la redundància.                |
+| `plausible-analytics`                                         | Consultar l'analítica de `mountainrunners.cat` per l'API de només lectura de Plausible.                       |
+| `project-context`                                             | Carregar la documentació que governa el projecte abans de proposar o canviar res.                             |
+| `quality-gate`                                                | Aplicar el gate local de les pàgines públiques: documents, ordres, rutes i llindars de Lighthouse.            |
+| `spec-authoring`                                              | Redactar especificacions de fase, funcionalitat o tasca segons la convenció del projecte.                     |
+| `spec-implementation-review`                                  | Revisar una implementació contra una tasca de l'especificació amb agents independents i sense modificar codi. |
+| `unslop`                                                      | Treure els patrons de redacció d'IA del text, amb un mode tècnic per a documents i procediments.              |
 
 ## Cadena De Subministrament
 

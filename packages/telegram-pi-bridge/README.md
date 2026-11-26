@@ -229,9 +229,8 @@ Pi relaciona també la sessió amb `cwd`: mantén el directori estable per tema 
 vols reprendre l'historial.
 
 `images` és opcional i s'escriu al registre `prompt` del protocol RPC. El
-transport no neteja ni valida la imatge: el consumidor hi envia només imatges ja
-reduïdes, sense metadades i amb un total màxim de 8 MB per prompt. La resta es
-queda al magatzem del tema i el model la pot mirar amb una eina.
+consumidor prepara les imatges i en limita la mida. El transport les transmet
+sense netejar-les, validar-les ni aplicar-hi cap límit de mida.
 
 El valor retornat inclou `text`, `timedOut` i `stderr`; pot incloure `aborted`
 o `handled`. El client espera `agent_settled`, no només `agent_end`. Una

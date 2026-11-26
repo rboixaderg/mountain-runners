@@ -5,8 +5,8 @@
 Quan dos documents discrepen, cal distingir comportament implementat i decisió
 acceptada:
 
-1. El codi, el contingut, els tests i els scripts de `apps/web` descriuen el
-   comportament que existeix avui.
+1. El codi, el contingut, els tests i els scripts de cada component descriuen el
+   comportament implementat.
 2. Els ADR de [`decisions/`](decisions/) governen les fronteres arquitectòniques.
    Una desviació del codi és deute o requereix un ADR substitutiu; no converteix
    automàticament la desviació en norma.
@@ -48,8 +48,8 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
     actualització, còpies, traça i validació de l'agent privat de Telegram.
 - [`phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md):
   inventari públic dels registres a preservar i a substituir al tall.
-- [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
-  editorial.
+- [`ai-assistant.md`](ai-assistant.md): futur xat públic, agent privat de
+  Telegram i agents locals.
 - [`decisions/`](decisions/): decisions arquitectòniques acceptades.
   - [`0001`](decisions/0001-static-site-and-content-in-git.md): web estàtica i
     contingut a Git.
@@ -80,8 +80,8 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
   [`phase-4/`](specs/phase-4/), [`phase-5/`](specs/phase-5/),
   [`phase-6/`](specs/phase-6/) i [`phase-8/`](specs/phase-8/). La fase 7 encara
   no té especificació.
-- [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
-  de notícies, blog i esborranys editorials en preview, amb tasques en curs.
+- [`specs/news-and-blog.md`](specs/news-and-blog.md): requisits i seguiment de
+  notícies, blog i esborranys editorials en preview.
 - [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
   signatura, actualització i aprovació humana. Inclou les dues plantilles.
 - [`skills.md`](skills.md): registre de les skills externes i pròpies, amb

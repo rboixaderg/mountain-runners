@@ -37,10 +37,8 @@ verificat.
   cada tasca d'implementació es desenvolupa en un worktree i una branca propis.
 - El disseny segueix `DESIGN.md`; la navegació inicial és plana: Qui som, Socis,
   Escoles i Esdeveniments.
-- El xat públic és de només lectura. L'agent privat de desenvolupament i
-  consulta proposat a la fase 8 només pot fusionar una PR amb la petició
-  explícita d'un membre verificat i el commit validat, i no desplega mai;
-  l'ampliació respecte del perfil editorial vigent necessita un ADR previ.
+- Els [límits dels assistents](ai-assistant.md) distingeixen el futur xat públic,
+  l'agent privat i les sessions locals.
 - Cap fase pot introduir secrets al repositori ni evitar la revisió, la CI o les
   restriccions de desplegament definides a `AGENTS.md` i `SECURITY.md`.
 
@@ -63,7 +61,7 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 5. Publicació a producció i operació         | Completada  | Desplegament continu segur sobre Hetzner                  |
 | 6. Previews de PR i estratègia DNS/edge      | Completada  | Previews aïllades i decisió informada sobre Cloudflare    |
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
-| 8. Agent de desenvolupament i consulta       | Planificada | Sessions privades compartides, codi i contingut fins a PR |
+| 8. Agent de desenvolupament i consulta       | En curs     | Sessions privades compartides, canvis de codi i contingut |
 
 Ordre d'execució: la fase 8 s'avança a la fase 7, que no n'és dependència
 tècnica ([ADR 0002](decisions/0002-public-chat-and-private-editor.md)).
@@ -320,12 +318,11 @@ són realment necessaris.
 
 - La decisió de DNS, TLS, domini, hosting i proveïdor està justificada i disposa
   d'ADR si canvia una frontera arquitectònica.
-- Una PR pròpia o de fork no exposa secrets ni permisos de producció, utilitza un
-  runner efímer i requereix autorització abans de publicar-se.
+- Només es publiquen previews de branques pròpies autoritzades. El build utilitza
+  un runner efímer sense secrets ni permisos de producció.
 - El publicador verifica manifest, digests i paths sense executar codi no fiable.
-- Les previews utilitzen un domini registrable separat, queden identificades com
-  a no-producció, declaren `noindex, nofollow, noarchive` i no comparteixen
-  cookies, caches ni zona DNS editable amb producció.
+- Les previews comparteixen domini registrable amb producció, però tenen un
+  origen separat per PR i els controls de l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 - La creació, actualització, caducitat, tancament, revocació i neteja són
   idempotents i estan documentades.
 
@@ -365,55 +362,18 @@ editorial ni exposar contingut privat.
 
 ## Fase 8: Agent de desenvolupament i consulta
 
+**Estat:** En curs. El servei té una base operativa i les correccions de
+[l'auditoria](specs/agent-audit-remediation.md) estan fusionades. El seguiment
+de la validació operativa continua a l'especificació de la fase.
+
 **Especificació:**
 [`docs/specs/phase-8/phase-8-editorial-assistance.md`](specs/phase-8/phase-8-editorial-assistance.md).
-Es conserva el camí històric després de la revisió d'abast del 6 de novembre de 2026.
 
-**Objectiu:** oferir sessions compartides de consulta i desenvolupament al VPS
-sobre el codi i el contingut del projecte, sense substituir Git ni la revisió
-humana. És una ampliació del perfil editorial: T8.2 ha obtingut l'ADR que
-esmena les fronteres vigents, inclosa l'esmena de merge demanat explícitament
-(PR #183) i l'esmena de l'ADR 0009 per a la petició delegada de previews. Els
-controls descrits s'han de verificar abans d'habilitar els permisos nous.
-La T8.3 prepara una base operativa que porta una tasca petita de Telegram fins
-al repositori i una PR. Les comprovacions essencials de seguretat precedeixen
-l'activació del pilot; els casos addicionals es validen amb la base en marxa a
-les entregues posteriors.
-
-**Abast:**
-
-- Telegram privat amb temes de fòrum: cada tema és una sessió, no una tasca
-  única. Qualsevol membre del grup pot consultar i encarregar canvis amb
-  llenguatge natural, mantenint l'autor de cada instrucció.
-- Consultar sense crear branques i encadenar feines dins d'una sessió. Reprendre
-  una feina des d'un altre fil amb branca/PR, descripció, especificació i ADR.
-- Editar codi i contingut, executar proves, fer commits i push i obrir o
-  actualitzar PR sense confirmacions intermèdies per a una implementació
-  encarregada. Amb CI verda, una persona del grup pot demanar al fil que
-  l'agent sol·liciti la preview amb el seu compte de GitHub.
-- Fusionar la PR quan un membre verificat ho demana explícitament al fil amb el
-  commit ja validat i totes les comprovacions obligatòries en verd; sense
-  aquesta petició, l'agent no fusiona i mai no activa auto-merge.
-- Avisar de solapaments sense bloquejar per aquest fet, amb entorns separats i
-  preservació dels canvis d'altres sessions.
-- Comparar runtimes i integracions per simplicitat i manteniment abans de
-  triar-ne un, sense exigir web pròpia ni gestor de tasques.
-- Afegir atribució privada, revocació per pertinença al grup, recuperació i
-  aturada d'emergència, amb l'agent aïllat de producció.
-
-**Criteris de tancament:**
-
-- L'ADR i els controls de permisos ampliats estan aprovats. L'agent només
-  fusiona amb la petició explícita d'un membre verificat o la seva confirmació
-  «Sí, a producció» a la pregunta del servei, i el commit validat; no fa push a
-  `main`, no desplega ni accedeix a secrets de producció.
-- Les sessions compartides, les consultes i la represa de PR entre fils estan
-  provades sense sobreescriure treball aliè ni duplicar accions en un reinici.
-- Cada instrucció és atribuïble a una persona al registre privat; les
-  implementacions són revisables a Git i a les PR.
-- L'agent només demana una preview amb CI verda i una petició explícita d'un
-  membre verificat del grup. Una CI vermella no activa cap preview ni genera
-  canvis parcials a producció.
+**Objectiu:** oferir sessions privades de consulta i desenvolupament a Telegram
+sense substituir Git ni la revisió humana. El
+[README de l'agent](../tools/server/agent/README.md) descriu el comportament
+implementat. L'[ADR 0013](decisions/0013-private-development-agent-boundary.md#decisió-vigent)
+fixa els permisos.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
@@ -421,6 +381,5 @@ les entregues posteriors.
   els textos de privacitat.
 - Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.
 - Política de conservació de logs i límits d'ús del futur xat públic.
-- Retenció i esborrat de converses, sessions i registre de l'agent de
-  desenvolupament i consulta: T8.2 n'avalua les capacitats segons l'eina triada i
-  registra la decisió o els punts pendents, sense fixar ara cap termini.
+- Revisar la [retenció de l'agent privat](operations/agent.md#retenció) quan es
+  compleixi alguna de les condicions del runbook.

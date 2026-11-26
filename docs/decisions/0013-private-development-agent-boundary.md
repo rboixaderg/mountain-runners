@@ -25,7 +25,10 @@ apartats següents conserven l'historial i el detall dels controls acceptats.
   lliurada, amb la branca al dia i les comprovacions obligatòries en verd,
   sense excepcions d'administrador. Si la branca requereix sincronització,
   cal una preview nova i una nova autorització. Tancar un resultat desconegut
-  requereix consultar GitHub i no pot desencadenar cap merge.
+  requereix consultar GitHub i no pot desencadenar cap merge. La persona
+  operadora també pot tancar el cas amb el servei aturat, en el supòsit acotat
+  de la [T11 de l'auditoria](../specs/agent-audit-remediation.md#t11-estats-que-bloquegen-sense-sortida).
+  El procediment és al [runbook de reconciliació](../operations/agent.md#reconciliació-de-resultats-desconeguts).
 - **Límit del merge.** El servei refusa la PR que canvia infraestructura:
   fitxers a l'arrel o directament a `apps/web/`; `tools/`, `packages/`,
   `apps/web/scripts/` i `apps/web/project.inlang/`; qualsevol camí amb un segment
@@ -107,6 +110,9 @@ El prototip local ha comprovat amb Telegram i el model configurat la separació 
 - **Privacitat.** La traça privada, les sessions, els logs i les còpies tenen controls d'accés i retenció explícits. Les PR i les branques són públiques: no hi entren identificadors personals, converses privades ni secrets. L'agent no pressuposa que una comprovació automàtica detecti totes les dades privades.
 
 ## Merge autoritzat per una persona (esmena acceptada)
+
+Registre de l'esmena original. La [decisió vigent](#decisió-vigent) incorpora la
+preview lliurada com a font del SHA i les altres esmenes posteriors.
 
 Els membres del grup són usuaris controlats i la seva instrucció és
 l'autorització. El merge continua sent una decisió humana: la persona que ha
@@ -221,6 +227,10 @@ El publicador actual comprova que l'autor del comentari de GitHub sigui col·lab
 
 ## Esmena (T8.9, 20 de novembre de 2026)
 
+El mecanisme de preview d'aquesta esmena queda substituït per les dues esmenes
+següents. La reexecució i el permís `Actions: write` queden superats per les
+[correccions de l'auditoria](#esmena-correccions-de-lauditoria-24-de-novembre-de-2026).
+
 Acceptada amb el merge de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262). Substitueix la
 regla que exigeix una petició explícita de preview: el servei la demana quan
 les comprovacions obligatòries del cap de la PR del tema són verdes. Conserva
@@ -316,9 +326,11 @@ contextual en dos passos al literal `/merge`, sense activar cap permís.
   confirmació una resposta.
 - **Idempotència i incertesa.** Una confirmació repetida o un reinici no
   fusionen dues vegades, i un avís substituït o d'enviament incert queda inert. Un resultat
-  desconegut es reconcilia llegint la PR abans de res; si no la mostra fusionada,
-  només una persona verificada el resol amb `/merge <PR> <SHA>`, que no autoritza
-  repetir ni saltar controls.
+  desconegut es reconcilia llegint la PR abans de res. En aquesta esmena, si la
+  PR no constava fusionada, només una persona verificada el resolia amb
+  `/merge <PR> <SHA>`. La [T11 de l'auditoria](../specs/agent-audit-remediation.md#t11-estats-que-bloquegen-sense-sortida)
+  substitueix l'exclusivitat de la via de Telegram. Cap via de reconciliació
+  autoritza repetir el merge ni saltar controls.
 - **Cap permís actiu.** Els controls s'han de provar abans d'activar-los i la
   primera fusió real requereix l'aprovació de la persona mantenidora.
 
@@ -384,8 +396,9 @@ No activa cap permís.
   merge.
 - **Revisió privada abans de publicar.** Aquesta és l'excepció al push
   automàtic de T8.9. Abans de lliurar resultats web al model, el servei registra
-  que la feina ha rebut recerca. El bloqueig es manté si es reprèn la feina en
-  un altre tema o torn, si es repara la CI o si es reinicia el servei. Cap push
+  que la feina ha rebut recerca. El bloqueig es manté entre torns i reinicis.
+  Les referències originals a la represa entre temes i a la reparació automàtica
+  de CI corresponen a fluxos retirats. Cap push
   d'aquella feina no surt del servei fins que una persona autoritzada ha revisat
   l'historial nou i les metadades que es farien públiques, a partir d'una còpia
   de només lectura al servei de confiança. Una PR en esborrany no és una
@@ -413,7 +426,7 @@ La prova no descarrega la imatge i no modifica la configuració del VPS. La vers
 
 La persona mantenidora informa que el VPS té 2 vCPU, 4 GB de RAM i 40 GB de disc. Aquesta capacitat no indica l'espai ni la memòria disponibles mentre funcionen els altres serveis. Abans d'activar el pilot cal provar la connexió del pont amb l'entorn aïllat, concretar i verificar els límits de recursos, preparar l'aturada i revisar les dades que reben el model, els logs i les còpies. Hi ha una execució activa global i fins a deu instruccions pendents, segons T8.1. Els límits numèrics de CPU, memòria, disc i temps no es poden donar per provats amb el contenidor local.
 
-Les proves de revocació, dos autors, continuació entre fils, recuperació d'efectes externs i preview es completen sobre la base operativa segons la planificació aprovada. La prova real de revocació continua pendent.
+Les proves de revocació, dos autors, continuació entre fils, recuperació d'efectes externs i preview es preveien sobre la base operativa. La prova real d'expulsió a Telegram no es va fer: la persona mantenidora la va descartar al tancament de [T8.5](../specs/phase-8/phase-8-editorial-assistance.md#t85-auditoria-revocació-i-recuperació), amb el cas de la cua cobert per proves del servei. Es mantenen els controls de pertinença.
 
 La [PR #181](https://github.com/rboixaderg/mountain-runners/pull/181) ha reordenat el primer pilot fins a PR. L'aprovació d'aquest ADR no autoritza per si sola cap desplegament o canvi remot. `AGENTS.md`, `CONTRIBUTING.md` i `docs/ai-assistant.md` ja estan alineats amb la frontera; [`docs/architecture.md`](../architecture.md) s'alinea en aquesta mateixa revisió, sense alterar el xat públic ni la revisió humana.
 

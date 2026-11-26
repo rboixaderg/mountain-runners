@@ -2,7 +2,7 @@
 name: quality-gate
 description: "Use when implementing or reviewing public pages of the Mountain Runners web app to load the local quality gate: governing documents, mandatory commands, representative routes and viewports, Lighthouse thresholds, budgets and required evidence."
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Mountain Runners Quality Gate
@@ -27,22 +27,10 @@ recommendations (skills, blogs, checklists).
 
 ## Mandatory Commands
 
-Run the smallest relevant check before declaring work complete:
-
-| Command            | Responsibility                                             |
-| ------------------ | ---------------------------------------------------------- |
-| `pnpm check`       | Format, lint, typecheck, Vitest and Node operational tests |
-| `pnpm test:server` | Node operational tests for server and deployment tools     |
-| `pnpm test:e2e`    | Playwright journeys in Chromium, Firefox and WebKit        |
-| `pnpm test:a11y`   | axe automated accessibility checks                         |
-| `pnpm lighthouse`  | Lighthouse scores and budgets on representative routes     |
-| `pnpm validate`    | CI gate: `pnpm check`, build and Playwright                |
-
-`pnpm check` does not build or fix the clock. Commands that build and serve the
-site (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`) run with
-`PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` and `BUILD_TODAY=2026-10-08`
-to keep builds and assertions deterministic. CI also defines both variables at
-the job level.
+Choose the relevant commands and browser prerequisites from the
+[testing strategy](../../../docs/testing-strategy.md#validació-i-evidència).
+It also identifies the preview check that CI runs separately from
+`pnpm validate`.
 
 ## Representative Routes And Viewports
 

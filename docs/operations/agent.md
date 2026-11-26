@@ -42,21 +42,8 @@ tres peces es mouen juntes: actualitzar Node vol dir reconstruir la imatge a
 partir de `tools/server/agent/sandbox/Containerfile` i canviar
 `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar el servei.
 
-Les credencials es declaren només pel nom: `MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN`,
-`MOUNTAIN_AGENT_GITHUB_TOKEN` i les que llista
-`MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES` per al proveïdor del model. Els
-valors viuen només a `agent.env`, amb mode `0600` i el propietari de la
-identitat del servei. En arrencar, el pont llegeix les credencials una sola
-vegada, les guarda només a la configuració en memòria i les elimina de
-`process.env`, de manera que cap procés fill (Git, Podman, Pi i les seves eines)
-les hereta. Risc residual: el codi que s'executa com a usuari del servei encara
-les pot llegir de l'entorn inicial del procés o del fitxer d'entorn; l'aïllament
-complet exigiria executar Pi amb un usuari separat.
-`MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES` refusa els noms que comencen per `MOUNTAIN_AGENT_` o `MR_AGENT_`. Els noms de les variables del servei són a
-`.env.example`; els valors no
-es copien mai al repositori, al tema, a la PR ni a un registre. El token de
-Telegram i el de GitHub no arriben a Pi, al contenidor ni al model, i el del
-proveïdor només arriba a Pi.
+El tractament de les credencials és a les
+[fronteres de confiança](../../tools/server/agent/README.md#fronteres-de-confiança).
 
 ### Configuració
 
@@ -100,15 +87,13 @@ codi (`MOUNTAIN_AGENT_CI_POLL_INTERVAL_MS`, `MOUNTAIN_AGENT_CI_WATCH_TIMEOUT_MS`
 
 ### Recursos i emmagatzematge
 
-Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
-inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
-2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment
-1 CPU i 2048 MiB; el límit de la unitat inclou també Pi i el pont. Aquests
-valors són provisionals i **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB,
-que comparteix amb la resta de serveis. L'emmagatzematge previst utilitza dos
-volums ext4 preassignats: 11 GiB per a Podman, repositori i worktrees, i 1 GiB
-separat per a la cua i la traça. La quota no inclou el journal ni `/run`; cal
-limitar-los i comprovar-ne l'impacte abans d'activar el pilot.
+La unitat limita el servei i els seus contenidors en conjunt. Els límits
+efectius del cgroup es van mesurar al VPS l'11 de novembre de 2026 amb una
+unitat transitòria equivalent. Consulta el
+[registre del pilot](../specs/phase-8/phase-8-editorial-assistance.md#registre-de-la-verificació-del-pilot)
+i torna a mesurar-los si canvien la unitat, Podman o el host. Els volums no
+limiten el journal ni `/run`: comprova'n l'impacte al
+[preflight](#preflight-del-primer-pilot).
 
 Les unitats de muntatge viuen a `tools/server/systemd/`. Abans d'arrencar,
 `storage/verify-volumes.mjs` comprova els dos punts de muntatge, el dispositiu
@@ -228,13 +213,6 @@ local sense symlinks al workspace; no equival a haver-lo desplegat.
 El clon del servei no comparteix el worktree principal de la persona mantenidora ni el de cap altra
 feina local.
 
-La versió de Node és la mateixa a tot arreu: `.node-version`, el VPS i la imatge
-del sandbox. El VPS usa Node 24.22.3 del repositori apt `node_24.x` de
-NodeSource. Actualitzar Node és un sol canvi: puja la versió a `.node-version` i
-a l'apartat `engines.node`, reconstrueix la imatge del sandbox a partir del
-`sandbox/Containerfile` i canvia `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar
-el servei.
-
 ### Versió de Pi
 
 El servei no fixa cap versió del Pi coding agent. Pi viu en un sol directori,
@@ -248,7 +226,8 @@ Risc acceptat: una versió nova de Pi pot canviar el comportament, per exemple c
 executa les eines o la sortida RPC. La línia `pi_version` i la pregunta posterior
 a l'actualització en són la comprovació.
 
-Per actualitzar a l'última versió, amb aprovació explícita:
+Per actualitzar a l'última versió, amb aprovació explícita, aplica també les
+[comprovacions d'arrencada](#abans-darrencar-després-duna-actualització):
 
 ```sh
 sudo systemctl stop mountain-agent
@@ -268,6 +247,11 @@ versió anterior és a la línia `pi_version` de l'arrencada anterior
 
 ### Activar, aturar i reiniciar
 
+No l'aturis, l'arrenquis ni l'habilitis a l'arrencada del sistema sense
+aprovació. Si has actualitzat el servei o restaurat l'estat, completa abans les
+[comprovacions d'arrencada](#abans-darrencar-després-duna-actualització) o la
+[revisió de la còpia](#revisar-lestat-restaurat-abans-darrencar), segons el cas.
+
 ```sh
 sudo systemctl start mountain-agent
 sudo systemctl stop mountain-agent
@@ -276,21 +260,9 @@ systemctl status mountain-agent
 sudo journalctl -u mountain-agent -n 100
 ```
 
-No l'aturis, l'arrenquis ni l'habilitis a l'arrencada del sistema sense
-aprovació. Una aturada no esborra res: worktrees, feina sense publicar,
-sessions, estat, branques i PR publicades continuen. Els contenidors del sandbox s'eliminen sols
-(`--rm`) i una ordre en curs queda amb resultat desconegut. Una aturada amb un
-contenidor obert pot arribar als 30 segons de `TimeoutStopSec`, perquè el procés
-`pause` de Podman sense root no respon a `SIGTERM` i systemd acaba matant-lo.
-
-El contenidor de cada ordre s'executa amb `--rm`: conmon l'elimina sol quan el
-procés mor. Una aturada ordenada i una mort sobtada del pont deixen el mateix
-resultat, cap contenidor ni cap registre residual. El contenidor viu dins del
-cgroup de la unitat, de manera que `MemoryMax`, `CPUQuota` i `TasksMax` cobreixen
-també la feina del model. Tota aturada amb un contenidor obert arriba al límit
-`TimeoutStopSec=30` i és systemd qui l'ha de matar; amb el valor per defecte de
-90 segons cada reinici s'endarreria tant. El límit s'ha de mantenir per sobre del
-temps de neteja ordenada d'un torn interromput.
+Una aturada amb un contenidor obert pot arribar als 30 segons de
+`TimeoutStopSec`: el procés `pause` de Podman sense root pot continuar fins
+que systemd l'aturi. Mantén el límit per sobre del temps de neteja ordenada.
 
 `Restart=on-abnormal`, amb `StartLimitIntervalSec=5min` i `StartLimitBurst=3`,
 evita dos bucles: una arrencada que refusa feina interrompuda amb resultat
@@ -298,10 +270,7 @@ desconegut queda fallida per a la persona operadora en lloc de reintentar-se, i
 una seqüència de caigudes s'atura després de tres intents. Una caiguda o una
 mort per falta de memòria sí que es reprèn.
 
-Si el servei refusa arrencar, no insisteixis: un reinici marca com a incert el
-treball en curs i la negativa es manté fins que una persona reconciliï el cas.
-`Restart=on-abnormal` i `StartLimitBurst=3` eviten bucles, així que tres
-arrencades fallides aturen el reintent automàtic. Segueix la
+Si el servei refusa arrencar per feina interrompuda, no insisteixis. Segueix la
 [reconciliació de resultats desconeguts](#reconciliació-de-resultats-desconeguts).
 Si falla `ExecStartPre`, el cas és dels volums: comprova la reserva i els
 muntatges segons la
@@ -342,6 +311,11 @@ clon que no sigui de root i una execució que no sigui de root.
 **Executar l'ordre.** Des del clon i amb el commit revisat de `main`. Els dos
 commits s'escriuen sencers, amb 40 caràcters hexadecimals: `git rev-parse
 <commit>` en dona la forma completa.
+
+Abans de canviar la configuració o la imatge, desa una còpia privada de
+`agent.env` i de les unitats efectives, incloses les de muntatge i els drop-ins.
+Anota el SHA complet instal·lat i l'identificador de la imatge. L'ordre copia
+el codi i `state/`; la configuració i la imatge es conserven per separat.
 
 ```sh
 sudo node tools/server/agent/commands/update/cli.mjs \
@@ -386,7 +360,7 @@ defecte.
 4. Si el lockfile, `pnpm-workspace.yaml`, `.node-version`, `package.json`
    (l'arrel i `apps/web`), el `package.json` del pont o
    `tools/server/agent/sandbox/Containerfile` han canviat respecte del commit
-   instal·lat, refusa instal·lar tret que `--image-rebuilt` affirmi que la
+   instal·lat, refusa instal·lar tret que `--image-rebuilt` afirmi que la
    imatge del commit nou ja està construïda i que `agent.env` ja hi apunta. Els
    canvis a `tools/server/systemd/` i a `.env.example` no la refusen: els
    reporta com a accions a fer abans d'arrencar.
@@ -507,7 +481,15 @@ només n'afirma la construcció: l'ordre no construeix mai res.
 pm images --digests
 ```
 
-**Després.** L'ordre no arrenca el servei.
+#### Abans d'arrencar després d'una actualització
+
+1. Aplica els canvis d'unitats que indiqui l'ordre i recarrega systemd si les
+   has modificat. Revisa `agent.env`, la imatge fixada i els volums.
+2. Comprova els requisits de l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md#comprovacions-i-punts-pendents)
+   i les precondicions de la [validació del pilot](#validació-del-pilot), inclosos
+   els permisos reals de GitHub, la protecció de `main` i les proves simulades
+   de merge. El servei no té cap interruptor separat per al merge. Si aquests
+   controls no estan verificats, no arrenquis amb la credencial real.
 
 ```sh
 sudo systemctl start mountain-agent
@@ -515,82 +497,46 @@ systemctl is-active mountain-agent
 sudo journalctl -u mountain-agent -n 100
 ```
 
-Comprova els volums, que la unitat verifica a `ExecStartPre` amb
-`storage/verify-volumes.mjs`, el journal i una consulta al tema que no hagi de
-crear cap branca.
+Comprova el journal i fes una consulta al tema que no hagi de crear cap branca.
 
-**Tornar enrere.** Atura el servei i restaura el que l'ordre va deixar a la
-carpeta de còpies. Els noms exactes els va imprimir l'ordre en actualitzar.
+#### Tornar enrere
 
-```sh
-sudo systemctl stop mountain-agent
-B=/var/backups/mountain-runners-agent
-L=/usr/local/lib/mountain-runners
-sudo rm -rf "$L/agent" "$L/node_modules/telegram-pi-bridge"
-sudo cp -a "$(sudo readlink -f "$B/agent-previous")" "$L/agent"
-sudo cp -a "$B/<còpia-del-pont>" "$L/node_modules/telegram-pi-bridge"
-sudo cp "$B/agent-previous.REVISION" "$L/agent.REVISION"
-# Les còpies són només per a root: restaura el propietari i els modes, i el
-# servei els pot llegir.
-sudo chown -R root:root "$L/agent" "$L/node_modules/telegram-pi-bridge"
-sudo chmod -R u=rwX,go=rX "$L/agent" "$L/node_modules/telegram-pi-bridge"
-```
+Amb aprovació explícita, atura el servei i confirma que està `inactive` o
+`failed`. Conserva una còpia de la instal·lació i l'estat actuals abans de
+substituir-los. Prepara la reversió amb el servei aturat:
 
-**Tornar a una versió que desava l'estat en bases separades obliga a restaurar
-l'estat abans d'arrencar-la.** Aquella versió no llegeix `agent.sqlite` i
-començaria amb l'estat buit. Les bases antigues són al mateix `state/` amb el nom
-`*.sqlite.migrated`
-([tornar a les bases separades](#tornar-a-les-bases-separades), pas obligatori) i
-també a la còpia de l'estat. Les dues vies tornen a l'estat del moment de
-l'actualització: el que s'ha desat després es perd.
-
-En la resta de casos, si el commit nou havia canviat l'esquema de `state/`,
-restaura també la còpia de l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
-sobre un `state/` buit. La identitat del servei no pot entrar a la carpeta de
-còpies, així que root llegeix l'arxiu i l'hi passa per l'entrada estàndard:
-
-```sh
-S=/var/lib/mountain-runners-agent/state
-A="$B/<còpia-de-l'estat>.tar"
-# `state/` només es buida si l'arxiu es llegeix sencer. Buidat i extracció com
-# la identitat del servei: root no escriu mai dins del volum de l'agent.
-# `lost+found` és del sistema de fitxers i s'hi queda.
-sudo cat "$A" | sudo runuser -u mountain-agent -- tar -tf - >/dev/null &&
-  sudo runuser -u mountain-agent -- find "$S" -mindepth 1 -maxdepth 1 \
-    ! -name lost+found -exec rm -rf -- {} + &&
-  sudo cat "$A" | sudo runuser -u mountain-agent -- \
-    tar -C "$S" --exclude=./lost+found -xf -
-```
-
-Si no tens ni aquesta còpia ni les bases `*.sqlite.migrated` que necessita la
-versió anterior, no tornis enrere sense aprovació explícita. Si la imatge del
-sandbox va canviar, torna a carregar la còpia amb `podman load` al magatzem de
-`mountain-agent` i apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar.
-Arrenca el servei i repeteix la comprovació. Conserva l'arxiu fins que la
-reversió estigui verificada.
-
-#### Tornar a les bases separades
-
-Amb el servei aturat i el codi anterior ja restaurat, és obligatori retornar el
-nom a les bases antigues i retirar els fitxers nous, tret que restauris la còpia
-de l'estat, que fa totes dues coses. El canvi el fa la identitat del servei:
-
-```sh
-sudo runuser -u mountain-agent -- sh -ceu '
-  cd /var/lib/mountain-runners-agent/state
-  for file in *.sqlite.migrated; do mv -- "$file" "${file%.migrated}"; done
-  rm -f agent.sqlite agent.sqlite-journal agent.sqlite-wal agent.sqlite-shm \
-    agent-migration.lock
-'
-```
-
-Una versió posterior torna a importar les bases en arrencar. Si en queda cap al
-costat d'un `agent.sqlite` que no l'ha importada tal com és, l'arrencada i la
-reconciliació es refusen: no esborris res fins a decidir quin estat és el bo.
-Si cal importar les bases antigues, el servei també refusa quan falta
-`agent.sqlite` però en queda el `-journal`, `-wal` o `-shm`. No els apliquis a
-una base nova. Conserva'ls en una còpia i resol quin estat cal recuperar abans
-de repetir l'arrencada.
+1. Tria el SHA complet del commit revisat i les còpies de `agent/`, del pont i,
+   si cal, de l'estat que l'ordre va indicar a `/var/backups/mountain-runners-agent/`.
+   Han de compartir els SHA curts i la marca horària del mateix intent.
+   `agent-previous` i `agent-previous.REVISION` identifiquen l'última còpia; no els
+   combinis amb fitxers d'una altra actualització.
+2. Copia els dos arbres a directoris temporals al mateix sistema de fitxers que
+   la instal·lació. Compara el conjunt de fitxers i els SHA-256 amb l'arxiu del
+   commit, amb el mateix abast que l'ordre d'actualització. Rebutja enllaços i
+   fitxers especials. Comprova `root:root`, directoris `0755` i fitxers `0644`.
+3. Comprova que l'estat actual és compatible amb la versió anterior. Si cal
+   restaurar-lo, extreu l'arxiu corresponent en un directori privat temporal
+   del volum d'estat i comprova la integritat i l'esquema de les bases abans de
+   tocar l'estat actual. Root lliura l'arxiu per l'entrada estàndard; només
+   `mountain-agent` l'extreu. No moguis `lost+found`. Per tornar a una versió
+   amb bases separades cal recuperar l'estat anterior a la migració: aquella
+   versió no llegeix `agent.sqlite`. Els `*.sqlite.migrated` sols no són una
+   còpia completa de `state/`.
+4. Prepara les unitats de servei i de muntatge, els drop-ins i la configuració
+   compatibles amb el commit anterior. Si la imatge va canviar, recupera-la amb
+   `podman load` al magatzem de `mountain-agent` i comprova que
+   `MOUNTAIN_AGENT_SANDBOX_IMAGE` apunta a l'identificador esperat. Mantén les
+   credencials vigents i els permisos d'`agent.env`.
+5. Si falta cap peça o no la pots verificar, mantén el servei aturat. Quan tot
+   coincideixi, aparta els arbres actuals i posa-hi els preparats amb renames.
+   Si cal substituir l'estat, fes-ho com a `mountain-agent`. No sobreposis la
+   còpia al contingut actual: aparta'l i restaura només l'estat verificat, sense
+   moure `lost+found`. Aplica les unitats i la configuració, i recarrega systemd
+   si has canviat unitats. Verifica els dos arbres abans d'escriure `agent.REVISION`.
+6. Si has restaurat l'estat, fes la
+   [revisió abans d'arrencar amb estat restaurat](#revisar-lestat-restaurat-abans-darrencar).
+   Repeteix les [comprovacions d'arrencada](#abans-darrencar-després-duna-actualització)
+   i conserva les còpies fins que la reversió estigui verificada.
 
 #### Assajar la migració de l'estat
 
@@ -635,13 +581,9 @@ ls -ld /usr/local/lib/mountain-runners/agent* \
   /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge*
 ```
 
-- Si `agent/` i `node_modules/telegram-pi-bridge/` hi són i `agent.REVISION`
-  encara és el commit anterior, restaura les còpies dels paràgrafs anteriors: és
-  l'estat conegut.
-- Si hi falta `agent/` però hi ha `agent.old`, `mv agent.old agent` el recupera;
-  si ja no hi és, `agent-previous` és la còpia.
-- `agent.new` i `telegram-pi-bridge.new` són un intent a mitges: esborra'ls quan
-  la instal·lació bona ja és al lloc.
+Si els arbres no coincideixen amb `agent.REVISION`, segueix
+[Tornar enrere](#tornar-enrere) amb les còpies del mateix intent. Conserva els
+directoris `.new` i `.old` fins que hagis verificat la instal·lació recuperada.
 
 ### Rotació de credencials
 
@@ -677,61 +619,83 @@ mantenidora.
 
 ### Còpies i restauració
 
-Atura el servei abans de copiar l'estat o les sessions; així les bases de dades
-són coherents. Copia:
+Amb aprovació explícita, atura el servei abans de copiar les dades. Anota
+l'hora UTC, el SHA complet instal·lat, la imatge fixada i, per a cada worktree
+que conservis, la ruta, la branca, el HEAD i l'estat local. Copia:
 
-| Element       | Contingut                                                                                   | Criteri                                                                                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `state/`      | `agent.sqlite` (cua, traça i estat de l'aplicació), `*.sqlite.migrated` si n'hi ha, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
-| `sessions/`   | Historial de Pi per tema                                                                    | Imprescindible si es vol conservar el context conversacional                                                                                        |
-| `worktrees/`  | Feina en curs i feina preservada                                                            | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
-| `repository/` | Clon amb `origin` i `main`                                                                  | Es pot tornar a clonar                                                                                                                              |
-| `agent.env`   | Credencials                                                                                 | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
-| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                         | Es tornen a instal·lar des del commit revisat                                                                                                       |
+- `state/` complet, amb les bases i els fitxers auxiliars corresponents,
+  `identifier-salt`, adjunts i `research-review/`.
+- `sessions/`, amb l'historial de Pi per tema.
+- El clon `repository/` i tots els worktrees registrats, encara que estiguin
+  nets, en la mateixa còpia. Conserva els objectes, les referències i el
+  registre de worktrees de `repository/.git/`. Un clon nou no pot recuperar
+  els commits locals ni el registre dels worktrees.
+- `agent.env` com a secret, separat de les dades.
+- Els drop-ins i la imatge fixada. Anota també les unitats de servei i de
+  muntatge que corresponen al commit revisat.
 
-Ordre de restauració:
+Amb aprovació explícita, mantén el servei aturat durant tota la restauració.
 
 1. Recrea la identitat, els volums i els muntatges amb la
    [instal·lació prevista](#installació-prevista). Munta primer el
    treball i després l'estat, i no formatis cap volum amb dades.
-2. Restaura els continguts amb el propietari `mountain-agent:mountain-agent` i
-   mode `0700`.
-3. Restaura `agent.env` com a root amb mode `0600`. Si la còpia ha pogut quedar
-   accessible a tercers, fes la [rotació](#rotació-de-credencials) abans
-   d'arrencar.
-4. Instal·la el codi del commit revisat que correspon a l'estat restaurat.
-5. Executa `storage/verify-volumes.mjs` i la
-   [reconciliació](#reconciliació-de-resultats-desconeguts)
-   abans d'arrencar: una còpia pot contenir un cas incert del moment de la
-   còpia.
-6. Arrenca el servei i comprova el journal i una consulta sense branca.
+2. Restaura les dades com a `mountain-agent`. Conserva els modes dels fitxers i
+   els directoris principals en `0700`. Restaura el clon i els worktrees de la
+   mateixa còpia a les rutes absolutes originals. Abans d'usar Git sobre un
+   worktree, comprova que el seu `.git` és un fitxer regular sense enllaços i
+   apunta a l'entrada corresponent de `repository/.git/worktrees/`. Comprova
+   que el `gitdir` d'aquella entrada apunta al `.git` del worktree.
+3. Amb la identitat del servei, comprova els objectes amb `git fsck --full` al
+   clon i contrasta `git worktree list --porcelain`, els HEAD i l'estat dels
+   fitxers, inclosos els no seguits, amb l'inventari de la còpia. Consulta
+   l'estat sense hooks, fsmonitor ni recórrer submòduls. Si falta un objecte o
+   no coincideixen els worktrees, no arrenquis el servei.
+4. Restaura `agent.env` com a root amb mode `0600`. Si la còpia ha pogut quedar
+   accessible a tercers, substitueix les credencials segons la
+   [rotació](#rotació-de-credencials). Espera a completar la restauració per
+   fer el pas d'arrencada de la rotació.
+5. Instal·la el codi i les unitats del commit revisat corresponent i recupera la
+   imatge fixada al magatzem de `mountain-agent`.
+6. Executa `storage/verify-volumes.mjs` i fes la revisió següent abans
+   d'arrencar. Amb aquestes comprovacions fetes, segueix les
+   [comprovacions d'arrencada](#abans-darrencar-després-duna-actualització).
 
-Una restauració no desfà res a GitHub: les branques, PR, comentaris i merges
-publicats hi continuen. Després de restaurar, revisa les PR obertes del compte de
-l'agent i la traça per saber què es va publicar. Les còpies contenen la traça i
-l'historial amb identificadors de Telegram: tracta-les com a dades privades i no
-les restauris en una altra màquina per provar.
+#### Revisar l'estat restaurat abans d'arrencar
 
-**Cobertura dels backups del VPS: comprovació pendent.** La documentació del
-projecte no diu si els backups automàtics de Hetzner (secció
-[còpies de seguretat i restauració](README.md#còpies-de-seguretat-i-restauració)) inclouen `/var/lib/mountain-runners-agent`
-i `/etc/mountain-runners-agent`. Comprova-ho abans del pilot. Si no hi són, cal
-una còpia separada d'aquestes rutes i una restauració de prova amb el servei
-aturat.
+1. Amb el servei aturat, comprova la integritat de les bases. Revisa en només
+   lectura les files pendents o en curs: cua d'instruccions, seguiments de CI
+   i preview, merges i confirmacions sense consumir. Revisa també l'offset de
+   Telegram i els efectes pendents de sessió. Consulta el
+   [mapa de l'estat](../../tools/server/agent/README.md#estat-de-laplicació).
+   Utilitza la versió de les eines compatible amb l'estat restaurat: una
+   versió posterior de `reconcile list` pot migrar les bases. `list` només
+   mostra casos incerts; una llista buida no valida la còpia.
+2. Contrasta la traça disponible, inclosa la còpia més recent si n'hi ha, amb
+   els efectes posteriors a l'hora de la còpia. Revisa els missatges del tema a
+   Telegram i les branques, els commits, les PR obertes o tancades, els
+   comentaris i els merges a GitHub. La restauració no els desfà. Comprova què
+   es podria repetir en reprendre la cua o què podria faltar a la còpia.
+3. Resol els casos incerts amb la
+   [reconciliació](#reconciliació-de-resultats-desconeguts). Si hi ha risc de
+   repetir una instrucció o cap discrepància pendent, no arrenquis. Acorda amb
+   la persona mantenidora quina còpia coherent cal recuperar. No repeteixis
+   accions externes ni editis a mà SQLite, l'offset o els registres.
+
+**Cobertura dels backups del VPS: comprovació pendent.** Verifica si les
+[còpies de Hetzner](README.md#còpies-de-seguretat-i-restauració) inclouen els
+fitxers de suport dels dos volums i `/etc/mountain-runners-agent`. Mantén una
+còpia separada i coherent de les dades del servei si la còpia del VPS no les
+pot recuperar. Prova que la còpia es pot llegir amb el servei aturat; les dades
+i els identificadors de Telegram són privats, no els copiïs a màquines de prova.
 
 ### Retenció
 
-Decisió de la persona mantenidora: per ara no s'esborra res automàticament. La
-traça privada, les bases de dades de `state/` i l'historial de Pi de `sessions/`
-es conserven fins a una revisió explícita. Les identitats dels efectes ja
-lliurats a la sessió (`session_delivered_effects`) tampoc no es poden: cada
-reintent d'un avís les consulta, i la mida és d'unes poques desenes de bytes per
-efecte.
+Conserva la traça privada, les bases de dades de `state/` i l'historial de Pi de
+`sessions/` fins a una revisió explícita. No suprimeixis les identitats dels
+efectes lliurats (`session_delivered_effects`).
 
-Els worktrees segueixen la política de retenció descrita a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#retenció-de-worktrees),
-que conserva sempre el treball no fusionat, no publicat o sense cometre i
-allibera les dependències generades dels temes tancats. La comanda
+La política és a la
+[retenció de worktrees](../../tools/server/agent/README.md#retenció-de-worktrees). La comanda
 `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
 servei amb `EnvironmentFile=/etc/mountain-runners-agent/agent.env`, mostra la
 mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
@@ -753,25 +717,19 @@ instruccions en curs o incertes.
 - **Revisió.** Cal revisar aquesta decisió i fixar terminis si un dels dos
   volums passa del 50 %, abans d'ampliar el pilot a més persones o quan una
   persona demani esborrar les seves dades.
-- **Còpies.** Si hi ha còpies de seguretat del VPS, també contenen la traça i
-  l'historial. Esborrar l'original no esborra les còpies; la revisió les ha
-  d'incloure. La còpia de `state/` ha d'incloure `identifier-salt`: sense aquest
-  fitxer canvien els noms opacs i els worktrees existents queden orfes.
-  `state/attachments/` conté imatges privades dels temes; s'esborren en
-  publicar-se o al cap de set dies, però una còpia de seguretat anterior encara
-  les pot contenir.
-  Conserva també `state/research-review/` amb la còpia privada del servei. Conté
-  l'estat i les metadades dels candidats, no el text de les pàgines llegides.
-  No l'esborris com a part d'una neteja de sessions: es necessita per mantenir
-  el bloqueig de publicació de les feines amb recerca.
+- **Còpies.** Revisa també l'espai de `/var/backups/mountain-runners-agent/`.
+  Les còpies d'actualització no tenen poda automàtica. Amb aprovació, retira
+  els conjunts antics sencers quan ja no calguin per revertir. Conserva com a
+  mínim un conjunt verificat i no deixis `agent-previous` apuntant a una còpia
+  retirada. En una revisió de dades privades, inclou les còpies de l'agent i
+  les del VPS que les continguin. Esborrar l'original, inclosos els
+  [adjunts caducats](../../tools/server/agent/README.md#adjunts), no esborra les còpies.
 
 ### Revocació
 
-Treure una persona del grup talla les instruccions noves i no
-cancel·la la feina ja acceptada. Per tallar-ho tot, atura el servei; per
-revocar una credencial, fes la [rotació](#rotació-de-credencials). El detall de
-què continua i què es torna a comprovar és a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#revocació).
+Consulta la [revocació de membres](../../tools/server/agent/README.md#revocació).
+Si cal interrompre la feina en curs, [atura el servei](#activar-aturar-i-reiniciar).
+Per revocar una credencial, fes la [rotació](#rotació-de-credencials).
 
 ### Consulta de la traça privada
 
@@ -822,12 +780,10 @@ for (const row of rows.reverse()) console.log(JSON.stringify(row));
 
 ### Reconciliació de resultats desconeguts
 
-Una aturada o un reinici pot deixar una acció externa amb resultat desconegut:
-una instrucció que podia haver fet push o obert una PR, o un merge. El servei
-refusa arrencar mentre quedi cap instrucció incerta; un merge incert no bloqueja
-l'arrencada. També és incerta una continuació que, després del push, no troba la
-seva PR o en troba una amb un altre número. La decisió és d'una persona: l'ordre
-no repeteix l'acció, no fa push, no comenta i no fusiona res.
+Per al tractament d'una instrucció o un merge incerts, consulta el
+[recorregut d'una petició](../../tools/server/agent/README.md#recorregut-duna-petició)
+i el [merge](../../tools/server/agent/README.md#merge). La persona operadora ha
+de comprovar el resultat a GitHub abans de resoldre el cas.
 
 **Precondició.** Atura el servei abans de fer res. L'ordre es refusa, també amb
 `list`, si `systemctl is-active mountain-agent` no diu `inactive` o `failed`:
@@ -926,11 +882,11 @@ també amb `list`.
    Després d'una fallada parcial, reintenta `published` amb els mateixos valors:
    una part de l'estat ja pot estar escrita.
 
-5. **Torna a arrencar.** Amb tots els casos resolts, el recompte que llegeix
-   l'arrencada és zero i el servei arrenca. Cap acció interrompuda no s'ha
-   repetit. L'arrencada completa totes les recuperacions locals abans de
-   refusar, així que un sol reinici deixa tots els casos atribuïts a la traça i
-   visibles a `list`.
+5. **Decideix quan reprendre.** Si la reconciliació forma part d'una
+   restauració o una actualització, deixa el servei aturat i acaba les
+   comprovacions d'aquell procediment abans d'arrencar. Si és una intervenció
+   independent, reprèn el servei amb aprovació només quan els casos estiguin
+   resolts. La reconciliació no torna a executar les instruccions interrompudes.
 
 Codis de sortida: 0 correcte. També és 0 quan `list` troba una lectura de GitHub
 no disponible (`"github": "unavailable"`) i quan `resolve` només falla en
@@ -1049,11 +1005,12 @@ privades fora de la PR i dels logs.
    Node i pnpm i que no es reutilitza `node_modules` d'una altra feina.
 5. Verifica els permisos de la credencial real i les restriccions dels entorns
    `production` i `previews`, sense exposar secrets. Revisa els workflows que
-   poden rebre secrets i prova els rebuigs sense fusionar cap PR ni fer push a
-   `main`. Si la frontera no es pot demostrar, no activis l'escriptura.
+   poden rebre secrets i comprova els rebuigs de merge amb GitHub i Telegram
+   simulats. Si la frontera no es pot demostrar, no arrenquis amb la credencial
+   real.
 6. Amb autorització explícita, prova una consulta que no creï branca i una
    tasca petita fins a PR. Comprova l'autor, la sessió, les validacions i la
-   branca. No demanis preview ni merge durant aquest pilot. Si una acció té un
+   branca. No demanis cap merge durant aquest primer smoke. Si una acció té un
    resultat desconegut, atura el pilot i reconcilia'l abans de reprendre'l.
 
 Registra a la PR el digest de la imatge, els límits i els resultats, sense
@@ -1079,12 +1036,12 @@ de la persona mantenidora consta a l'especificació.
      revisat de `main` ([actualitzar](#actualitzar)), verifica els volums,
      comprova que la imatge fixada és al magatzem de `mountain-agent` i executa
      la [reconciliació](#reconciliació-de-resultats-desconeguts)
-     amb `list`.
+     amb `list`. Anota el commit actiu de producció i les previews actives.
    - Esperat: producció i previews serveixen, el servei està aturat i `list` no
      retorna cap cas.
    - Si falla: no arrenquis el servei; resol primer els volums o els casos
      incerts.
-1. **Credencial de GitHub i protecció de `main`.**
+1. **Credencial de GitHub, protecció de `main` i proves de merge.**
    - Fer: revisa el token del compte de l'agent: `Contents: write`,
      `Pull requests: write`, lectura de checks i estats, sense `Actions: write`,
      sense escriptura a `.github/workflows` i sense lectura d'administració. Comprova que el compte
@@ -1093,14 +1050,18 @@ de la persona mantenidora consta a l'especificació.
      branca al dia. Comprova que la protecció s'aplica també als administradors
      («enforce admins») i que el compte de l'agent no té cap bypass. Comprova els
      secrets `PREVIEW_*`, l'entorn `previews` i el DNS wildcard de
-     `*.preview.mountainrunners.cat`.
+     `*.preview.mountainrunners.cat`. Amb el servei real aturat, executa les
+     proves de [comandes de merge](../../tools/server/agent/workflow/merge-request.test.mjs)
+     i [confirmacions](../../tools/server/agent/workflow/merge-confirmation.test.mjs)
+     amb GitHub i Telegram simulats. Els casos de refús no es proven al grup real.
    - Esperat: cada permís és el documentat i la llista de comprovacions
      coincideix amb la protecció. GitHub exigeix la branca al dia també al
-     compte de l'agent en el moment del merge.
-   - Si falla: no activis l'escriptura ni el merge; corregeix el token o la
-     configuració i torna a començar la validació.
+     compte de l'agent en el moment del merge. Les proves de refús no invoquen
+     el merge simulat.
+   - Si falla: mantén el servei aturat i corregeix el problema abans de continuar.
 2. **Flux bàsic.**
-   - Fer: al tema, fes una consulta sobre el codi i després una implementació
+   - Fer: si han passat les precondicions i els controls, arrenca el servei
+     amb aprovació explícita. Al tema, fes una consulta i després una implementació
      petita fins a PR, per exemple una correcció de documentació. Comprova les
      verificacions obligatòries a GitHub. Després demana una notícia curta amb
      una foto i, quan estigui a punt, demana-la publicada amb «publica-la».
@@ -1109,11 +1070,11 @@ de la persona mantenidora consta a l'especificació.
      comprovació, i fa com a màxim una pregunta. La implementació crea una
      branca, un sol commit i una PR amb la identitat de l'agent. El tema rep la
      resposta del model, una línia curta que diu que el canvi s'està comprovant i
-     l'enllaç de revisió com a darrera línia. El verd consta a la traça i no
+     l'enllaç de revisió com a darrera línia. El verd consta al journal i no
      genera un segon missatge. Quan el publicador confirma la preview del
      commit, arriba un altre avís amb la seva adreça. La notícia es crea com a
      esborrany; «publica-la» la marca com a publicada amb l'hora de la petició,
-     que és la seva aprovació editorial. El merge continua sent humà. Sense
+     que és la seva aprovació editorial i no autoritza cap merge. Sense
      petició no s'escriuen les variants en castellà ni en anglès.
    - Si falla: atura el servei i anota la instrucció; no repeteixis cap
      publicació. Si el resultat és desconegut, reconcilia'l.
@@ -1137,34 +1098,16 @@ de la persona mantenidora consta a l'especificació.
      `PREVIEW_*`, el DNS i l'estat de la preview, i atura el servei mentre no es
      confirmi.
 5. **Merge.**
-   - Fer: amb Telegram i GitHub simulats (`pnpm test:server`), respon a l'avís
-     vigent amb «La feina està validada» i comprova que només arriba la pregunta
-     fixa, sense torn de model ni avís de recepció. Respon «Sí, a producció» (i
-     variants sense accents, comes o «a» com «si, produccio») i comprova que el
-     merge simulat usa la PR i el SHA fixats. Prova també «Perfecte», «Sí» solt,
-     una validació fora de context, un avís anterior, una persona no verificada
-     o revocada entre passos, una cita, un reenviament, una edició, un fitxer,
-     una confirmació solta, d'una altra persona o repetida, un enviament fallit
-     o incert de la pregunta i una instrucció interposada entre la validació i la
-     resposta.
-   - Després, en una PR sintètica, prova els rebuigs de `/merge`: sense avís
-     vigent de preview confirmada, amb un commit posterior a l'avís, sense
-     `preview`, amb `preview-revoked`, amb la CI vermella o pendent,
-     `/merge <PR>` d'una altra PR i una prosa com «fusiona-la». Aquests rebuigs
-     no fan cap merge. Només amb l'aprovació explícita de la persona mantenidora
-     en aquell moment, fes un sol merge real d'un canvi sintètic inofensiu amb
-     `/merge` o `/merge <PR>`.
-   - Esperat: cada validació acceptada i cada resposta «Sí, a producció»
-     correcta arriben al camí determinista; una validació o confirmació fora de
-     context segueix la conversa habitual i no fusiona res. Cada rebuig respon
-     amb el motiu i no fusiona res. El merge real fusiona exactament el SHA de
-     l'avís de preview, amb squash, i la resposta nomena la proposta fusionada;
-     l'última línia és l'enllaç de revisió amb el canvi fusionat, amb el SHA
-     curt.
+   - Fer: revisa l'evidència dels casos de merge simulats del pas 1. No enviïs
+     cap ordre de prova que pugui fusionar al grup real. Només amb l'aprovació
+     explícita de la persona mantenidora en aquell moment, fes un sol merge
+     real d'un canvi sintètic inofensiu amb `/merge` o `/merge <PR>`.
+   - Esperat: el merge real fusiona exactament el SHA de l'avís de preview amb
+     squash. La resposta nomena la proposta fusionada i acaba amb l'enllaç de
+     revisió amb el SHA curt.
    - Si falla: atura el servei i no tornis a escriure `/merge` ni a respondre
-     «Sí, a producció» a cap pregunta. Un resultat desconegut es reconcilia
-     llegint la PR; només una persona verificada el pot reconciliar amb
-     `/merge <PR> <SHA>`. La reconciliació no torna a fusionar.
+     «Sí, a producció» a cap pregunta. Segueix la
+     [reconciliació de resultats desconeguts](#reconciliació-de-resultats-desconeguts).
 6. **Adjunts.**
    - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
      i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges
@@ -1180,10 +1123,7 @@ de la persona mantenidora consta a l'especificació.
      llarg i `.agent-attachments/` no apareix a la PR.
    - Si falla: no afegeixis la imatge a mà; atura el servei i revisa la traça
      (`attachment_refused`, `attachment_used`) i els fitxers de
-     `state/attachments/`. Un refús o una denegació de pertinença ja traçats no
-     es repeteixen després d'un reinici, perquè la traça és duradora; si el
-     reinici cau entre la traça i l'avís, l'avís no es repeteix. Les imatges noves d'un prompt sumen com a
-     màxim 8 MB; la resta queda al magatzem del tema.
+     `state/attachments/`.
 7. **Aturada i reinici.**
    - Fer: amb una implementació en curs, atura el servei amb
      `sudo systemctl stop mountain-agent`. Amb una altra execució en curs, fes
@@ -1212,11 +1152,16 @@ de la persona mantenidora consta a l'especificació.
    - Si falla o no hi ha segon compte, anota-ho; sense segon compte el pas queda
      com a no executat.
 10. **Producció i tancament.**
-    - Fer: comprova producció amb `verify-site.mjs` i les previews amb
-      `mountain-preview list` i `health`. Atura el servei amb
-      `sudo systemctl stop mountain-agent`.
-    - Esperat: la web i les previews responen com abans de la validació, el servei
-      queda `inactive` i no hi ha cap cas incert.
-    - Si falla: si producció o una preview ha canviat, atura el servei i revisa
-      Caddy abans de res més; no despleguis ni reiniciïs producció sense
-      aprovació.
+    - Fer: comprova el commit actiu amb `mountain-release list` i la salut de
+      producció amb `verify-site.mjs`. Fes servir `mountain-preview inventory`
+      i `mountain-preview health <n>` per a les previews que han de seguir
+      actives. Atura el servei i executa `reconcile list`.
+    - Esperat: si s'ha fet el merge real aprovat, comprova que el workflow
+      `Artifact` ha activat el commit de fusió i que el
+      [workflow de neteja](previews.md#reconciliació) ha retirat la preview de
+      la PR tancada. Sense aquell merge, la release activa no canvia. Les
+      altres previews continuen sanes, llevat de les retirades de prova
+      previstes. El servei queda `inactive` i `list` no mostra casos incerts.
+    - Si falla: mantén el servei aturat i comprova el workflow corresponent
+      i l'estat del servidor. No despleguis ni reiniciïs producció per
+      corregir la prova.

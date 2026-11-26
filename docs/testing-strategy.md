@@ -155,11 +155,17 @@ al build. Les comprovacions locals focalitzades no substitueixen els gates
 obligatoris de CI i hooks.
 
 El hook `pre-push` executa `pnpm check:local` perquè el feedback local sigui
-ràpid ([ADR 0012](decisions/0012-local-fast-checks.md)). El gate complet
-(`pnpm check` i `pnpm test:e2e`) viu a CI i es pot reproduir localment amb
-`pnpm validate` quan el canvi ho requereixi. Si el canvi afegeix o modifica un
-recorregut E2E, executa'l localment abans de declarar la feina feta: el hook
-ràpid no substitueix les proves que afecten el canvi.
+ràpid ([ADR 0012](decisions/0012-local-fast-checks.md)). `pnpm test:server`
+inclou una prova operativa de recursos editorials que construeix artefactes i
+usa Playwright. Tant aquesta ordre com `pnpm check`, que la inclou, requereixen
+els [navegadors locals](../CONTRIBUTING.md#eines-locals), encara que cap de les
+dues executi la suite E2E.
+
+El [workflow de qualitat](../.github/workflows/quality.yml) executa les dues
+ordres de `pnpm validate` i una comprovació addicional: build amb
+`PUBLIC_PREVIEW=true` i execució de `preview.spec.ts` i `posts.spec.ts`.
+Si afegeixes o modifiques un recorregut E2E, executa'l localment; el hook ràpid
+no el substitueix.
 
 Registra les ordres i resultats reals, els casos protegits i el risc residual.
 Distingeix passades, omissions intencionades i parts no executades. Els canvis

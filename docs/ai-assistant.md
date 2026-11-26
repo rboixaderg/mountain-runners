@@ -10,48 +10,17 @@ El seu índex de recuperació ha d'excloure esborranys, secrets, notes privades 
 documentació interna. L'entrada no és fiable i no pot modificar les instruccions
 del sistema ni activar eines.
 
-## Assistent Editorial Privat
+## Agent privat de Telegram
 
-L'assistent editorial privat podrà funcionar en el futur a través de Telegram o
-Discord. El seu flux permès es limita a crear una branca, editar contingut
-autoritzat, executar scripts de validació aprovats, obrir una pull request i
-retornar una previsualització. La fase 8 amplia aquest perfil a consultes i
-canvis de codi amb la mateixa atribució privada, segons
-l'[ADR 0013](decisions/0013-private-development-agent-boundary.md); el xat
-públic continua separat.
+La fase 8 inclou l'assistència editorial dins de l'agent privat de
+desenvolupament. Consulta el [README del servei](../tools/server/agent/README.md)
+per al comportament implementat, la
+[decisió vigent de l'ADR 0013](decisions/0013-private-development-agent-boundary.md#decisió-vigent)
+per als permisos i la [guia editorial](editorial/guide.md) per a les entrades.
 
-El contingut autoritzat es defineix amb una allowlist explícita per fase. Per
-defecte només inclou els fitxers YAML de les col·leccions editorials aprovades i
-els recursos que aquestes referencien. No inclou components, estils, rutes,
-configuració d'Astro, catàlegs de missatges, esquemes, scripts ni la navegació.
+## Agents locals
 
-No pot fusionar pull requests pel seu compte, publicar contingut, desplegar
-serveis, accedir a camins del sistema de fitxers no relacionats ni rebre accés
-de shell o de producció sense restriccions.
-
-El merge continua sent una decisió humana. L'agent privat de desenvolupament de
-la fase 8 el pot executar només amb la petició explícita d'un membre verificat
-del grup o la seva resposta «Sí, a producció» a la pregunta fixa que segueix la
-validació «La feina està validada», fixada a la PR i el commit de l'avís vigent
-de la preview confirmada i amb les comprovacions obligatòries en verd, segons
-l'[ADR 0013](decisions/0013-private-development-agent-boundary.md), amb l'esmena
-de merge aprovada (PR #183) i els controls verificats abans d'activar-lo. Cap
-altre text autoritza res.
-
-## Agent De Desenvolupament
-
-El projecte inclou l'agent principal `development` a
-`.opencode/agent/development.md`. Pot delegar exploració, recerca, comprovacions
-independents i revisions de seguretat a subagents per mantenir el context
-principal acotat. L'agent principal conserva la responsabilitat de l'abast, les
-decisions, la integració i la validació final.
-
-La delegació no autoritza canvis de frontera: cap subagent no publica, desplega,
-fusiona, gestiona secrets ni pren decisions finals. Les normes d'`AGENTS.md`,
-els ADR i el flux de branques, worktrees i pull requests continuen prevalent.
-
-## Traçabilitat
-
-Cada canvi editorial ha de ser revisable com a diff de Git i atribuïble a una
-branca i una pull request. La revisió humana continua sent el punt de control de
-la publicació.
+[`AGENTS.md`](../AGENTS.md) governa les sessions locals. El perfil
+[`development`](../.opencode/agent/development.md) defineix la delegació a
+OpenCode. L'excepció de l'ADR 0013 no s'aplica a les sessions locals ni als
+subagents.

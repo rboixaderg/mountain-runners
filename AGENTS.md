@@ -73,62 +73,8 @@ A living document is any tracked Markdown file under `docs/`, `tools/` or
 
 ## Code Conventions
 
-Follow [`docs/code-conventions.md`](docs/code-conventions.md) when writing or
-reviewing `apps/web` code. The review of every PR checks these rules:
-
-- Keep pages (`src/pages/`) thin: only `getStaticPaths`, data loading, metadata
-  and composition. Pages never contain `Intl.DateTimeFormat`, status
-  derivations or host extraction.
-- Keep presentation helpers pure in `src/lib/presentation/`: they return data or
-  i18n message keys, and never import Astro or Paraglide. The locale contract
-  follows the data (ADR 0004 and the amended rule 3 of ADR 0006): a helper
-  receives the locale exactly when it reads locale-indexed fields
-  (`Record<Locale, ...>`) or produces localized output; helpers over
-  locale-free data (typed status keys, URL building, identifier extraction,
-  type ordering, markdown parsing) omit it and never take an inert parameter.
-  Components resolve message keys with the corresponding locale.
-- Content stores semantic values, never render protocols or HTML attributes
-  (`mailto:`, `tel:`...): components or `src/lib/presentation/` helpers build
-  the `href` and attributes. Model validations reject anything the render could
-  interpret (`%`, `?`, `#`, whitespace or control characters) without
-  replicating presentation decisions.
-- Extract the second occurrence of a date, status or URL helper to
-  `src/lib/presentation/` and reuse it; never duplicate it in pages or
-  components.
-- Compose detail templates from section components; each section owns its data,
-  messages and visibility guard, so the template reads as an outline.
-- Define shared string values (message keys, statuses, time zones) as typed
-  constants and derive union types from those constants; do not scatter magic
-  strings through pages, components or helpers.
-- Never use single-letter variables or aliases: every identifier must describe
-  what it represents (e.g. `messages`, not `m`). Import bindings from external
-  libraries keep their documented names (`z` from Zod).
-- Prefer human readability over brevity: explicit branches, early returns and
-  small named functions over nested ternaries.
-- Write the smallest correct change: no speculative generality, no "just in
-  case" guards, branches, props or defaults. Do not repeat checks the type system
-  guarantees for internal values; preserve runtime validation at trust
-  boundaries. Extract reusable helpers and fragments at the second real
-  occurrence, never in advance; keep components required by the accepted
-  architecture even when they are used once.
-- Use named Tailwind utilities backed by theme tokens for ordinary styles. Do
-  not turn bespoke CSS into arbitrary Tailwind values merely to keep it in a
-  class attribute.
-- Promote a repeated value to a `@theme` token at the second semantically
-  equivalent occurrence, or when `DESIGN.md` already defines the role. Edit
-  `global.css` in any phase only to add or adjust approved scale tokens
-  consumed in that same phase. Prefer the closed scales in `DESIGN.md` over
-  near-equal historical values; do not invent per-page spacing, tracking or
-  shadow exceptions.
-- Keep custom CSS minimal and scoped to the component or template that owns it.
-  Every custom rule must have a concrete reason that named utilities and theme
-  tokens cannot express clearly.
-- Treat CSS classes as implementation details, never as E2E hooks. Tests prefer
-  role and accessible name, labels, visible text and semantic relationships.
-  Use `data-testid` only when no semantic alternative exists, and document the
-  reason next to the test.
-- Refactors preserve visual output, routes, content and user-observable
-  behavior. Selector syntax may change when those contracts remain intact.
+Read and follow [`docs/code-conventions.md`](docs/code-conventions.md) when
+writing or reviewing `apps/web` code.
 
 ## Preview Server Tooling
 
@@ -152,8 +98,7 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   headers or dependency integrity checks for convenience.
 - Prefer minimal dependencies. Pin dependencies through the project lockfile
   and review new third-party services or telemetry.
-- Treat public-chat input as untrusted and keep the future editorial assistant
-  restricted to allowed content paths and explicit scripts.
+- Treat public-chat input as untrusted.
 - Do not remove or hide `PreviewNotice` or the `PUBLIC_PREVIEW` build switch.
   This rule guides agents; it is not a security boundary against PR authors.
 - Do not run destructive commands or commands that publish, deploy, push,
@@ -181,25 +126,18 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   diff, stage only intended files and use a semantic commit message.
 - Agents must never merge a pull request on their own initiative and never
   enable auto-merge. A human decides the final merge.
-- The private phase 8 agent is the only scoped exception. Its merge amendment
-  to ADR 0013 is approved (PR #183), but no permission is active until its
-  controls are verified. It merges a pull request only on a verified group
-  member's explicit `/merge` request (optionally `/merge <PR>`) or their
-  «Sí, a producció» reply (normalized without requiring accents, commas or «a»)
-  to the question the service asked after the exact validation «La feina està
-  validada» on the delivered preview notice, resolved and pinned to the pull
-  request and commit of that notice, with every required check green and the
-  branch up to date. It never merges on its own initiative, from other text,
-  with newer commits than the pinned one or with an administrator bypass. Local
-  sessions and every other agent keep the no-merge rule.
+- Local sessions and every other agent must not merge pull requests. The
+  private Telegram service is the only exception, within the verified controls
+  of [ADR 0013](docs/decisions/0013-private-development-agent-boundary.md#decisió-vigent).
+  Approval of an ADR does not activate permissions.
 - Changes may reach production only through a reviewed pull request merged into
   the protected default branch and the approved deployment pipeline. Local agent
   sessions never deploy the web.
-- Two server components are installed manually instead: the private phase 8
-  agent service
+- The private agent and the release and preview tools are maintained manually.
+  Follow the procedures for the private agent
   ([`docs/operations/agent.md`](docs/operations/agent.md#actualitzar)) and the
-  release and preview server tooling
-  ([`docs/operations/web-and-releases.md`](docs/operations/web-and-releases.md#actualitzar-les-eines-en-un-vps-existent)).
+  [release](docs/operations/web-and-releases.md#actualitzar-les-eines-en-un-vps-existent)
+  and [preview](docs/operations/previews.md#actualitzar-les-eines) tools.
   A local agent session on a maintainer-controlled machine may start, stop,
   restart or update them only from a reviewed `main` commit, with the
   maintainer's explicit approval in the current conversation. The Telegram

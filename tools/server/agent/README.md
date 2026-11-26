@@ -24,10 +24,10 @@ workflow/run-instruction.mjs ── policy/development.mjs (prompts, textos, nom
    ├─ torn de Pi ─ runtime/pi-adapter.mjs ─ Pi (sense credencials de GitHub)
    │                     └─ sandbox_bash ─ Podman (worktree a /work)
    ├─ comprovacions ─ pnpm check / check:local dins del sandbox
-   ├─ publicació ─ repository/publisher.mjs ─ escaneig, push, PR, etiqueta preview
+   ├─ publicació ─ repository/publisher.mjs ─ escaneig, push, PR, petició de preview
    │
    ▼
-GitHub ◀── workflow/ci-watch.mjs (avís de CI del SHA publicat)
+GitHub ◀── workflow/ci-watch.mjs (seguiment de la CI del SHA publicat)
    ▲   ◀── workflow/preview-request.mjs (adreça de la preview confirmada)
    └────── workflow/merge-request.mjs (/merge o «Sí, a producció»)
                      │
@@ -45,25 +45,26 @@ amb Pi, Podman i GitHub.
    la instrucció. La desa abans d'avançar l'offset de Telegram. Només hi ha una
    execució global.
 2. El servei no classifica les peticions ordinàries: obre un torn de Pi amb
-   escriptura al worktree del tema. El merge, les confirmacions de merge o de
-   recerca i `/publica-revisio` segueixen camins deterministes sense torn de model.
+   escriptura al worktree del tema. El servei comprova amb regles deterministes
+   l'autorització del [merge](#merge) i de l'enviament d'una [cerca](#cerca-web).
 3. Si hi ha canvis o commits pendents, el servei en fa un commit, sincronitza la
    branca amb `main` i executa `pnpm check` al sandbox (`pnpm check:local` si
    s'aplica l'[ADR 0012](../../../docs/decisions/0012-local-fast-checks.md)).
    Una fallada conserva la feina per al torn següent.
-4. El publicador escaneja credencials, fa push i obre o reutilitza la PR. La
-   primera PR del tema hi rep l'etiqueta `preview`. El tema queda vinculat a la
-   branca i la PR (`topic_jobs`).
+4. El publicador escaneja credencials, fa push i obre o reutilitza la PR. El tema
+   queda vinculat a la branca i la PR (`topic_jobs`).
 5. El servei desa el registre de la publicació (`publications`) abans de
-   respondre. Un bucle en segon pla llegeix la CI del SHA publicat i la preview
-   que confirma el publicador de la fase 6, i avisa el tema.
+   respondre. Dos bucles en segon pla segueixen la [CI](#ci) i la [preview](#preview)
+   del SHA publicat.
 6. Una persona verificada demana el merge. El servei el fa només si es compleixen
    les condicions de [Merge](#merge).
 
 Una instrucció amb resultat desconegut (un error després del push, una aturada
-de sandbox no confirmada) queda `uncertain`, bloqueja l'arrencada i la tanca una
-persona amb la [reconciliació](../../../docs/operations/agent.md#reconciliació-de-resultats-desconeguts).
-Cap acció externa es repeteix automàticament.
+de sandbox no confirmada) queda `uncertain` i bloqueja l'arrencada fins que una
+persona en [reconcilia el resultat](../../../docs/operations/agent.md#reconciliació-de-resultats-desconeguts).
+El servei no torna a executar la instrucció. En canvi, pot repetir els
+[avisos de Telegram previstos a l'ADR 0014](../../../docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md)
+si se'n desconeix el lliurament, sense repetir cap efecte a GitHub.
 
 ## Estat de l'aplicació
 
@@ -77,7 +78,7 @@ adjunts i la revisió de recerca es desen fora de la base.
 | Taula                       | Una fila per                | Estats                                                                                                       | Codi                                 |
 | --------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
 | `instructions`              | actualització admesa        | `pending`, `running`, `uncertain`, `done`, `rejected`                                                        | `packages/telegram-pi-bridge`        |
-| `publications`              | commit publicat pel servei  | `ci_state`: `pending`, `sent`, `superseded`; `preview_state`: `awaiting`, `confirmed`, `timed_out`, `failed` | `repository/publication-store.mjs`   |
+| `publications`              | actualització amb push      | `ci_state`: `pending`, `sent`, `superseded`; `preview_state`: `awaiting`, `confirmed`, `timed_out`, `failed` | `repository/publication-store.mjs`   |
 | `merge_requests`            | petició de merge            | `merging`, `merged`, `failed`, `uncertain`, `not_merged`                                                     | `repository/merge-request-store.mjs` |
 | `merge_questions`           | pregunta de confirmació     | sense consumir o consumida (`consumed_at`)                                                                   | `repository/merge-request-store.mjs` |
 | `session_notes`             | efecte pendent d'un tema    | `undelivered`, `claimed`                                                                                     | `repository/session-note-store.mjs`  |
@@ -85,10 +86,12 @@ adjunts i la revisió de recerca es desen fora de la base.
 | `topic_jobs`                | tema vinculat               | —                                                                                                            | `repository/topic-job-store.mjs`     |
 | `imported_databases`        | base antiga importada       | —                                                                                                            | `repository/legacy-state.mjs`        |
 
-Una publicació té una sola fila, amb el resultat de l'avís de CI, l'adreça
-confirmada de la preview i l'identificador de l'avís lliurat. `ci_state` i
-`preview_state` avancen per separat. Les files importades poden tenir un dels dos
-estats a `NULL`; les que no tenen `ci_state` no poden fixar un merge.
+La clau de `publications` és l'identificador de l'actualització de Telegram
+(`update_identifier`). La fila desa el SHA publicat a `commit_sha`, el resultat
+de la CI, l'adreça confirmada de la preview i l'identificador de l'avís lliurat.
+`ci_state` i `preview_state` avancen per separat. Les files importades poden
+tenir un dels dos estats a `NULL`; les que no tenen `ci_state` no poden fixar un
+merge.
 
 Si a `state/` hi ha les bases separades d'una versió anterior,
 l'arrencada i la reconciliació les importen una vegada
@@ -122,53 +125,56 @@ l'arrencada i la reconciliació les importen una vegada
   al sandbox: el worktree, la branca i l'etiqueta del contenidor deriven d'un
   HMAC amb el salt `state/identifier-salt` (`repository/identifiers.mjs`). Sense
   el salt els noms existents no es poden reconstruir: entra a les còpies.
-- **Sortida.** Una ordre del sandbox té un límit conjunt d'1 MiB, i `sandbox_bash`
-  retorna al model com a màxim 32 KiB (`runtime/sandbox-bash-output.mjs`).
-  Superar-ho atura el procés i espera la neteja dels contenidors.
+- **Sortida.** Si `stdout` i `stderr` d'una ordre del sandbox superen junts 1 MiB,
+  el servei atura el procés i espera la neteja del contenidor
+  (`sandbox/commands.mjs`). `sandbox_bash` mostra al model fins a 32 KiB de
+  sortida i indica si l'ha retallada. El retall no atura l'ordre
+  (`runtime/sandbox-bash-output.mjs`).
 - **Aturada.** Matar Pi no atura els contenidors. L'adaptador espera l'aturada
   de cada contenidor abans de comprovar o publicar; una aturada no confirmada
   bloqueja el servei (`sandbox/errors.mjs`).
 
 ## Preview
 
-El servei no demana mai la preview. Quan crea la PR d'un tema hi posa l'etiqueta
-`preview` (`repository/github.mjs`, una sola operació d'etiquetes). El publicador
-de la fase 6 construeix el cap i cada push posterior, i confirma l'adreça amb un
-comentari de `github-actions[bot]` per al SHA exacte. Les condicions de l'etiqueta
-són a l'[especificació](../../../docs/specs/preview-label.md) i la construcció, a
-[`docs/operations/previews.md`](../../../docs/operations/previews.md#publicar-una-preview).
+El servei demana la preview amb l'etiqueta `preview`. Només intenta posar-la
+quan crea la PR, mai quan la reutilitza. Si no pot posar-hi l'etiqueta, la
+publicació es manté i el servei ho comunica (`repository/publisher.mjs`). El
+[publicador de previews](../../../docs/operations/previews.md#publicar-una-preview)
+confirma l'adreça amb un comentari de `github-actions[bot]` per al SHA exacte.
 
 `workflow/preview-request.mjs` segueix cada publicació (`preview_state`): `awaiting`
 acaba com a `confirmed`, `timed_out` (25 minuts,
 `previewConfirmationTimeoutMilliseconds`) o `failed`. Una PR sense l'etiqueta,
 amb `preview-revoked`, tancada o amb un cap més nou acaba sense cap avís
-d'adreça. L'avís s'envia abans de tancar el seguiment; si l'enviament és
-desconegut, es pot repetir (ADR 0014).
+d'adreça. L'avís s'envia abans de tancar el seguiment.
 
 ## CI
 
 `workflow/ci-watch.mjs` llegeix els check runs i els estats de commit del SHA
-publicat (`repository/ci-status.mjs`) i, quan les comprovacions obligatòries
-(`MOUNTAIN_AGENT_REQUIRED_CHECKS`) acaben, avisa el tema. Només declara verdes les
-comprovacions obligatòries presents i correctes. Una fallada, cancel·lació o temps
-esgotat envia l'avís de fallada; el servei no reexecuta jobs ni repara la CI. Una
-publicació nova de la mateixa PR substitueix el seguiment anterior
-(`ci_state = superseded`). Una CI verda no autoritza el merge.
+publicat (`repository/ci-status.mjs`). Si totes les comprovacions obligatòries
+(`MOUNTAIN_AGENT_REQUIRED_CHECKS`) són presents i correctes, el resultat queda
+a la nota de servei i al journal. El seguiment es tanca amb
+`ci_state = sent` sense enviar cap avís a Telegram. Si les comprovacions fallen
+o no es poden confirmar dins del termini, el servei avisa el tema. El servei no
+reexecuta jobs ni repara la CI. Una publicació nova de la mateixa PR substitueix
+el seguiment anterior pendent (`ci_state = superseded`). Una CI verda no
+autoritza el merge.
 
 ## Merge
 
-[`workflow/merge-request.mjs`](workflow/merge-request.mjs) resol `/merge` i la
-confirmació «Sí, a producció» sense passar pel model. Revalida el membre, la
-preview lliurada i l'estat de la PR a GitHub. Tampoc fusiona si el tema té feina
-més nova que l'avís. Les autoritzacions i les exclusions d'infraestructura són a
+[`workflow/merge-request.mjs`](workflow/merge-request.mjs) interpreta `/merge` i
+la confirmació «Sí, a producció» i comprova l'autorització sense el model.
+Revalida el membre, la preview lliurada i l'estat de la PR a GitHub. Si el tema
+té feina més nova que l'avís, no fusiona. Les autoritzacions i les exclusions són a
 l'[ADR 0013](../../../docs/decisions/0013-private-development-agent-boundary.md#decisió-vigent).
 En la via de dues respostes, la primera ha d'anar a l'avís lliurat de la preview
 de l'última publicació i la segona a la pregunta exacta del servei, des del
 mateix tema i per la mateixa persona. La pregunta fixa la PR i el SHA, caduca
 a les 24 hores i es consumeix un sol cop.
 
-Una branca endarrerida s'integra amb `main`, es valida i es publica a la mateixa
-PR; el servei no fusiona amb aquella petició i demana revisar la preview nova.
+Si la branca va endarrerida, el servei integra `main` i valida i publica el canvi
+a la mateixa PR. Pot obrir un torn de Pi per resoldre un conflicte. El servei no
+fusiona amb aquella petició i demana revisar la preview nova.
 
 No es repeteix mai un merge sense llegir abans la PR. Amb una petició `uncertain`,
 el `/merge` següent i l'arrencada consulten GitHub. A diferència d'una instrucció
@@ -178,12 +184,11 @@ amb la reconciliació d'operador. Tancar el cas no fusiona la PR.
 
 ## Retenció de worktrees
 
-Dins del bucle inactiu, després de cada instrucció i cada sis hores, la retenció
-revisa els temes de `topic_jobs`. Si la PR vinculada consta fusionada i la branca
-coincideix, elimina el worktree net i publicat. Si la PR és tancada sense fusionar
-o el worktree té feina no publicada o sense cometre, el conserva i només retira
-els directoris de dependències generats. No esborra mai feina no fusionada ni el
-worktree d'una PR oberta (`repository/retention.mjs`). L'ordre d'operador és a
+El servei programa una revisió dels temes de `topic_jobs` a l'arrencada i cada
+sis hores. L'executa quan la cua és buida i no està bloquejada. Per a les PR
+tancades amb la branca coincident, elimina el worktree si és net, està publicat
+i la PR s'ha fusionat. Si no, el conserva i només retira les dependències
+generades (`repository/retention.mjs`). L'ordre d'operador és a
 [`docs/operations/agent.md`](../../../docs/operations/agent.md#retenció).
 
 ## Revocació
@@ -220,15 +225,21 @@ reinici no repeteix les notes d'un torn interromput.
 
 ## Adjunts
 
-Un torn ordinari rep imatges del tema: fotos de Telegram i documents JPEG, PNG i
-WebP, fins a cinc per missatge o àlbum i 20 MB per imatge. El servei les
-descarrega en executar la instrucció. Valida les capçaleres sense descodificar cap
-píxel, elimina les metadades (EXIF, XMP, IPTC) i conserva el perfil de color. Una
-imatge amb el costat llarg superior a 2.400 px es redueix dins del sandbox. Només
-les imatges netes arriben al worktree i al model. El magatzem és
-`state/attachments/topic-<hex>/`, amb retenció fins a la publicació o set dies.
-`view_attachment` només obre un nom de la llista del servei, sense seguir enllaços
-simbòlics. El codi és a `attachments/`.
+El [pont de Telegram](../../../packages/telegram-pi-bridge/README.md#pont-de-telegram)
+defineix els formats i límits d'entrada. El servei descarrega les imatges quan
+executa la instrucció. Valida les capçaleres sense descodificar cap píxel i treu
+les metadades; en aquesta neteja pot conservar un perfil de color de fins a 64 KiB.
+Només les imatges netes arriben al worktree i al model. El sandbox aplica
+l'orientació EXIF si cal i redueix les imatges fins a un màxim de 2.400 px al
+costat llarg i 2 MiB per fitxer (`attachments/scale.mjs`).
+
+El magatzem `state/attachments/topic-<hex>/` admet 20 imatges i 50 MiB per tema,
+i 256 MiB en total. Si cal fer lloc, elimina les imatges més antigues segons la
+quota que s'hagi omplert. També elimina les imatges que s'han publicat o que fa
+més de set dies que es van desar (`attachments/store.mjs`). El servei adjunta al
+prompt fins a 8 MiB d'imatges noves abans de codificar-les en base64. Les altres
+imatges del tema es poden obrir amb `view_attachment`, que només accepta noms
+de la llista del servei i no segueix enllaços simbòlics.
 
 ## Cerca web
 
@@ -237,11 +248,15 @@ no té xarxa ni el token: el servei fa les consultes pel descriptor 3 de Pi
 (`runtime/web-wire-server.mjs`, `web-research/broker.mjs`). Refusa destinacions
 internes i revalida cada redirecció. Les consultes i URL fora de les llistes
 revisades requereixen confirmació; els secrets i identificadors privats detectats
-no s'envien ni amb confirmació. Els resultats són dades no fiables. Una feina
-que ha rebut recerca no fa push fins que una persona autoritzada n'aprova el candidat en privat
-(`repository/research-review.mjs`, `commands/research-review/cli.mjs`); aquesta
-aprovació no autoritza cap merge. Activació i revisió són a
-[`docs/operations/agent.md`](../../../docs/operations/agent.md#comprovar-el-dns-abans-dactivar-la-cerca-web).
+no s'envien ni amb confirmació. Si la consulta confirmada dona resultat, Pi pot
+reprendre la feina original amb aquestes dades no fiables.
+
+Abans del push d'una feina que ha rebut recerca, una persona autoritzada n'ha
+d'aprovar el candidat exacte en privat (`repository/research-review.mjs`). Un
+cop aprovat, `/publica-revisio` permet reprendre la publicació. Aquesta aprovació
+no autoritza cap merge. El document d'operació descriu els
+[requisits d'activació](../../../docs/operations/agent.md#comprovar-el-dns-abans-dactivar-la-cerca-web)
+i la [revisió privada](../../../docs/operations/agent.md#revisar-en-privat-una-edició-amb-recerca).
 
 ## Llengua i avisos
 

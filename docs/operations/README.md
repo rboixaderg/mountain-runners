@@ -7,9 +7,16 @@ organitzada per component. El contingut compartit per tots els components
 (servidor, identitats, còpies, logs, salut i resposta a emergències) viu en
 aquest document.
 
-Cap acció remota (crear el VPS, registres DNS, claus SSH, secrets o activacions)
-no s'executa sense l'aprovació explícita de la persona mantenidora. Cap agent,
-sessió local ni assistent editorial no pot desplegar ni operar producció.
+Tota intervenció manual remota requereix l'aprovació explícita de la persona
+mantenidora. El [pipeline aprovat](web-and-releases.md#desplegament-continu-des-de-main)
+desplega la web de producció des de `main`. Cap agent ni sessió local no pot
+desplegar-la.
+
+El manteniment acotat del
+[servei privat](agent.md#actualitzar) i de les
+[eines de releases](web-and-releases.md#actualitzar-les-eines-en-un-vps-existent)
+i [previews](previews.md#actualitzar-les-eines) segueix
+[AGENTS.md](../../AGENTS.md#git-and-review).
 
 ## Components
 
@@ -18,8 +25,7 @@ part «Com s'opera» (ordres, instal·lació, actualització, reversió i
 incidències).
 
 - [`web-and-releases.md`](web-and-releases.md): build i artefacte, releases,
-  desplegament continu, reversió, TLS, redireccions, tall DNS, HSTS i gate de
-  llançament.
+  desplegament continu, reversió, TLS i redireccions.
 - [`previews.md`](previews.md): publicador, autorització per etiqueta, gate
   `mountain-preview`, instal·lació al VPS i retirada de les previews de PR.
 - [`agent.md`](agent.md): instal·lació, configuració, actualització, reversió i
@@ -245,19 +251,34 @@ mínim una còpia diària).
 
 **Restauració** (aprovació explícita de la persona mantenidora):
 
+Si la còpia inclou l'agent privat, bloqueja `mountain-agent.service` al sistema
+restaurat des d'un entorn de recuperació aïllat, abans de la primera arrencada
+amb xarxa. Si no ho pots garantir, no arrenquis aquesta còpia amb xarxa. Abans
+de reprendre l'agent en el VPS restaurat, atura o aïlla la instància anterior
+i completa la [restauració de l'agent](agent.md#còpies-i-restauració).
+
 1. Al Cloud Console, crear un servidor nou a partir de l'últim backup (o
    reconstruir el VPS des del backup si Hetzner ho ofereix per a aquella
-   instància). No s'editen fitxers a mà dins de les releases.
+   instància).
 2. Verificar el fingerprint SSH nou o restablert i actualitzar `known_hosts`.
 3. Comprovar `systemctl is-active caddy mountain-release`,
-   `sudo mountain-release health` i
-   `node tools/server/verify/verify-site.mjs --base-url https://<host> --expect-noindex`.
+   `sudo mountain-release health` i els
+   [smoke tests del host recuperat](web-and-releases.md#smoke-tests).
 4. Si el backup és anterior a l'última release activa, instal·lar i activar
    l'artefacte aprovat més recent pel canal de T5.4; no reconstruir al
    servidor.
 
 La primera restauració de prova es fa després del bootstrap del VPS, abans del
 tall de producció, amb un servidor de prova o un rebuild controlat.
+
+### Finestra de manteniment de releases i previews
+
+Abans de substituir les eines, la persona mantenidora ha d'impedir que comencin
+workflows nous de desplegament, rollback, publicació o neteja de previews,
+inclosos els programats. Espera que la cua i els jobs en curs quedin buits i
+acorda que no s'iniciï cap operació manual equivalent. Aturar
+`mountain-preview-site` no bloqueja el gate SSH. Reprèn els workflows només
+després de verificar l'actualització o restaurar i verificar la versió anterior.
 
 ## Logs
 

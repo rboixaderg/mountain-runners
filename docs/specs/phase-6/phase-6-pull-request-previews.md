@@ -4,8 +4,8 @@
 
 Completada el 18 d'octubre de 2026. El sistema de previews és operatiu i validat
 al VPS sota `*.preview.mountainrunners.cat`: T6.1 a T6.7 estan fusionades i les
-previews de PR autoritzades funcionen. L'operació és a la
-[secció 13 del runbook](../../operations/previews.md#previews-de-pull-request).
+previews de PR autoritzades funcionen. L'operació és al
+[runbook de previews](../../operations/previews.md).
 
 ## Objectiu
 

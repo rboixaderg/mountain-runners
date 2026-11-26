@@ -250,7 +250,8 @@ executar la retirada pel canal administratiu aprovat; no editar releases a mà.
 - El bootstrap instal·la la comanda a `preview/commands/mountain-preview/` i crea el symlink
   `release -> .`, que el resol contra les eines de release planes sense còpies
   duplicades. En un VPS ja actiu, segueix el procediment preview-only de
-  [«Instal·lació En Un VPS Ja Actiu»](#installació-en-un-vps-ja-actiu-preview-only);
+  [instal·lació inicial](#installació-en-un-vps-ja-actiu-preview-only) o
+  [actualització](#actualitzar-les-eines), segons el cas;
   no tornis a executar el bootstrap complet.
 - La publicació és atòmica: l'install extrau en un directori nou i l'activació
   mou el symlink `current` del namespace de manera atòmica; un error conserva
@@ -364,9 +365,11 @@ persona mantenidora.
 
 ### Instal·lació En Un VPS Ja Actiu (preview-only)
 
-La instal·lació s'ha de fer per una persona mantenidora, des d'un checkout
-revisat de la branca desplegada. No executis `bootstrap.sh` ni cap ordre de
-`tools/deploy/`. El gate reutilitza les eines de release planes mitjançant un
+Per a una instal·lació existent de previews, segueix
+[Actualitzar les eines](#actualitzar-les-eines). La primera instal·lació la fa
+una persona mantenidora, des d'un commit revisat de `main`. No executis
+`bootstrap.sh` ni cap ordre de `tools/deploy/`. El gate reutilitza les eines
+de release planes mitjançant un
 symlink root-owned `release -> .`, sense duplicar mòduls. No substitueixis un
 directori o symlink `release` existent: atura't i revisa'l abans de migrar.
 
@@ -508,6 +511,35 @@ les credencials de desplegament continuen fora de l'abast dels previews.
 
 ### Actualitzar les eines
 
-L'actualització de les eines de release instal·la també el `cli.mjs` de
-previews. El procediment és a
-[`web-and-releases.md`](web-and-releases.md#actualitzar-les-eines-en-un-vps-existent).
+Amb aprovació explícita, segueix els
+[límits del manteniment manual](README.md#propòsit). Prepara al VPS un commit
+revisat de `main` i obre una
+[finestra de manteniment](README.md#finestra-de-manteniment-de-releases-i-previews).
+Les previews importen mòduls de releases a través de `release -> .`.
+
+1. Prepara l'arbre `preview/` en un directori temporal al mateix sistema de
+   fitxers. Reutilitza les ordres d'`install` i `chmod` de la
+   [instal·lació inicial](#installació-en-un-vps-ja-actiu-preview-only) per a
+   `preview/`, amb `LIB` apuntant al directori temporal. Verifica noms i
+   contingut de tots els fitxers contra el commit revisat. Han de correspondre
+   a [l'arbre complet de mòduls](#noms-del-flux-de-previews), sense fitxers
+   antics ni proves; tot ha de ser `root:root`, amb directoris `0755`, els dos
+   punts d'entrada `0755` i la resta de fitxers `0644`.
+2. Atura `mountain-preview-site` i conserva l'arbre i la unitat anteriors. Si
+   canvien els mòduls compartits, conserva les eines de releases anteriors i
+   aplica el pas [Substituir les eines de releases](web-and-releases.md#substituir-les-eines-de-releases)
+   des del mateix commit.
+   Substitueix tot l'arbre `preview/` pel preparat. Compara recursivament els
+   fitxers i els permisos de l'arbre instal·lat amb els del verificat. Comprova
+   `release -> .` i que els dos enllaços de
+   `/usr/local/bin/` apunten al `cli.mjs` instal·lat. Si ha canviat la unitat,
+   instal·la-la amb l'UID i el GID de `preview-deploy` com a la
+   [instal·lació del servei](#installació-al-vps-existent-només-amb-aprovació)
+   i recarrega systemd. Comprova que l'`ExecStart` efectiu apunta al `main.mjs`
+   del procés `mountain-preview-site` instal·lat.
+3. Arrenca `mountain-preview-site` i comprova el servei, el socket, el gate
+   SSH, `mountain-preview inventory`, la salut de les previews actives i la
+   de producció. Si falla cap comprovació, mantén la finestra de manteniment
+   i recupera la versió coordinada anterior abans de reprendre els workflows.
+   No reexecutis el bootstrap ni modifiquis els blocs de Caddy per actualitzar
+   les eines.

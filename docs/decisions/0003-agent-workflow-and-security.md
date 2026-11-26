@@ -22,6 +22,10 @@ ni de protecció de branca.
 
 ## Esmena (T8.2, 9 de novembre de 2026): excepció acotada del servei privat
 
+Registre de l'esmena original. Per aplicar avui l'excepció del servei privat,
+segueix la [decisió vigent de l'ADR 0013](0013-private-development-agent-boundary.md#decisió-vigent),
+que incorpora les esmenes posteriors.
+
 L'[ADR 0013](0013-private-development-agent-boundary.md) acota una excepció per
 al servei privat de desenvolupament de la fase 8. Una petició d'implementació
 d'un membre verificat del grup autoritza editar, executar proves, fer commit,
