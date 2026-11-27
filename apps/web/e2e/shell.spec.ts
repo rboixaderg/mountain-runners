@@ -744,18 +744,25 @@ test("renders the historical event detail without an action", async ({
 test("renders the active event detail without an announced date", async ({
   page,
 }) => {
-  await page.goto("/ca/esdeveniments/quina-berguedana/");
+  // The entry is read from the published catalog, not frozen: the event that
+  // shows this state changes as soon as its next edition is announced.
+  const entry = site.eventHubGroups["active-without-date"][0];
+  expect(entry).toBeDefined();
+  expect(entry!.nextEdition).toBeUndefined();
+
+  await page.goto(entry!.href);
+
+  const badge =
+    entry!.event.clubRelationship === "organizes"
+      ? messages.event_club_badge_organizes({}, { locale: "ca" })
+      : messages.event_club_badge_collaborates({}, { locale: "ca" });
 
   await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "Quina Berguedana",
-    }),
+    page.getByRole("heading", { level: 1, name: entry!.event.title.ca }),
   ).toBeVisible();
-  await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
+  await expect(page.getByText(badge, { exact: true })).toBeVisible();
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
   await expect(page.getByText("Sense data anunciada")).toBeVisible();
-  await expect(page.getByText("Inscripció tancada")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Recursos" }),
   ).toHaveCount(0);

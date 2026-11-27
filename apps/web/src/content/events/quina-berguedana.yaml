@@ -30,7 +30,7 @@ description:
 
 
     No és una prova esportiva: és una vetllada festiva al Pavelló Vell, el
-    dissabte abans de Nadal, amb línies, números directes i bingos, lots de
+    dissabte de Nadal, amb línies, números directes i bingos, lots de
     comerços locals i un gran bingo final. Els beneficis són una font
     d'ingressos per a les entitats organitzadores.
   es: >-
@@ -42,7 +42,7 @@ description:
 
 
     No es una prueba deportiva: es una velada festiva en el Pavelló Vell, el
-    sábado antes de Navidad, con líneas, números directos y bingos, lotes de
+    sábado de Navidad, con líneas, números directos y bingos, lotes de
     comercios locales y un gran bingo final. Los beneficios son una fuente de
     ingresos para las entidades organizadoras.
   en: >-
@@ -54,9 +54,9 @@ description:
 
 
     It is not a sporting event: it is a festive evening at the Pavelló Vell on
-    the Saturday before Christmas, with lines, direct numbers and bingos, lots
-    from local shops and a grand final bingo. The proceeds are a source of
-    income for the organising clubs.
+    the Saturday of the Christmas holidays, with lines, direct numbers and
+    bingos, lots from local shops and a grand final bingo. The proceeds are a
+    source of income for the organising clubs.
 clubRelationship: organizes
 cover:
   resource:
@@ -81,6 +81,14 @@ organizerIds:
   - handbol-berga
 collaboratorIds: []
 editions:
+  - id: edition-2026
+    startDate: 2026-12-26
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: unavailable
+    documentIds: []
   - id: edition-2025
     startDate: 2025-12-20
     location:
