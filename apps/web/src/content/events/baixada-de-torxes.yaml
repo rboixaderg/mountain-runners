@@ -29,6 +29,8 @@ cover:
     ca: Logotip de Mountain Runners del Berguedà
 gallery: []
 videoUrls: []
+registrationUrl:
+  ca: https://mountainrunners.playoffinformatica.com/activitat/59/Baixada-de-Torxes-per-a-la-Marato-de-TV3-2026/
 organizerIds:
   - mountain-runners
   - club-esqui-bergueda
@@ -38,5 +40,5 @@ editions:
     startDate: 2026-12-13
     location:
       ca: Santuari de Queralt – Església de Sant Francesc, Berga
-    registrationStatus: unavailable
+    registrationStatus: open
     documentIds: []
