@@ -1,0 +1,32 @@
+id: baixada-de-torxes
+published: true
+slug:
+  ca: baixada-de-torxes
+active: true
+title:
+  ca: Baixada de Torxes
+summary:
+  ca: Baixada de torxes des del Santuari de Queralt fins a Berga.
+description:
+  ca: >-
+    La Baixada de Torxes surt del Santuari de Queralt i baixa fins a Berga.
+    L'edició de 2026 se celebra el 13 de desembre.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.png
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+gallery: []
+videoUrls: []
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: edition-2026
+    startDate: 2026-12-13
+    location:
+      ca: Santuari de Queralt – Berga
+    registrationStatus: unavailable
+    documentIds: []
