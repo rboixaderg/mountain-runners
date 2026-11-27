@@ -1,0 +1,44 @@
+id: baixada-de-torxes
+published: true
+slug:
+  ca: baixada-de-torxes
+active: true
+title:
+  ca: Baixada de Torxes
+summary:
+  ca: >-
+    Baixada de torxes des del Santuari de Queralt fins a l'església de Sant
+    Francesc, a Berga, amb els beneficis per a la Marató de TV3.
+description:
+  ca: >-
+    La Baixada de Torxes surt del Santuari de Queralt i baixa fins a l'església
+    de Sant Francesc, a Berga. Es fa el 13 de desembre de 2026, en el marc de les
+    activitats del Mercat del Regal de Nadal de Berga, i els beneficis de
+    l'activitat es destinen a la Marató de TV3.
+
+
+    L'activitat l'organitzen conjuntament l'Ajuntament de Berga, Berga
+    Comercial, Mountain Runners del Berguedà, Club Esquí Berguedà i Ironwill
+    Berga.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.png
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+gallery: []
+videoUrls: []
+registrationUrl:
+  ca: https://mountainrunners.playoffinformatica.com/activitat/59/Baixada-de-Torxes-per-a-la-Marato-de-TV3-2026/
+organizerIds:
+  - mountain-runners
+  - club-esqui-bergueda
+collaboratorIds: []
+editions:
+  - id: edition-2026
+    startDate: 2026-12-13
+    location:
+      ca: Santuari de Queralt – Església de Sant Francesc, Berga
+    registrationStatus: open
+    documentIds: []
