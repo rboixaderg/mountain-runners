@@ -1,3 +1,4 @@
+import { createBuildCache } from "./build-cache";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { imageMetadata } from "astro/assets/utils";
@@ -25,9 +26,22 @@ export function getDocumentHref(
     : undefined;
 }
 
-export async function getLocalImageSize(
+const cacheSize = createBuildCache<
+  { width: number; height: number } | undefined
+>();
+
+export function getLocalImageSize(
   resourcePath: string,
   appDirectory = defaultAppDirectory,
+) {
+  return cacheSize(JSON.stringify([appDirectory, resourcePath]), () =>
+    readLocalImageSize(resourcePath, appDirectory),
+  );
+}
+
+async function readLocalImageSize(
+  resourcePath: string,
+  appDirectory: string,
 ): Promise<{ width: number; height: number } | undefined> {
   try {
     const filePath = await resolveLocalResourcePath(appDirectory, resourcePath);

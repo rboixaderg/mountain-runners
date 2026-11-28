@@ -1,3 +1,4 @@
+import { createBuildCache } from "./build-cache";
 import sharp from "sharp";
 import { fileURLToPath } from "node:url";
 import { resolveLocalResourcePath } from "./resources";
@@ -19,10 +20,16 @@ export function getPostImageHref(
   return `/editorial-images/${getPostImagePath(sourcePath, width)}`;
 }
 
-export async function transformPostImage(
-  sourcePath: string,
-  width: PostImageWidth,
-) {
+const cacheTransform =
+  createBuildCache<Awaited<ReturnType<typeof encodePostImage>>>();
+
+export function transformPostImage(sourcePath: string, width: PostImageWidth) {
+  return cacheTransform(JSON.stringify([sourcePath, width]), () =>
+    encodePostImage(sourcePath, width),
+  );
+}
+
+async function encodePostImage(sourcePath: string, width: PostImageWidth) {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
   const filePath = await resolveLocalResourcePath(appDirectory, sourcePath);
   return sharp(filePath)

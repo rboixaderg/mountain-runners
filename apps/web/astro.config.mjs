@@ -31,6 +31,10 @@ export default defineConfig({
       assetsInlineLimit: (filePath) =>
         filePath.endsWith(".js") ? false : undefined,
     },
-    plugins: [tailwindcss(), paraglideVitePlugin(paraglideOptions)],
+    plugins: [
+      tailwindcss(),
+      process.env.MR_PARAGLIDE_PREGENERATED !== "1" &&
+        paraglideVitePlugin(paraglideOptions),
+    ],
   },
 });

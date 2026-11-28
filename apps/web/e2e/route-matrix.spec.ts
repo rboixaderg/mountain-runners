@@ -23,7 +23,10 @@ import {
   loadPublicationCatalog,
   loadPublishedPostVariants,
 } from "../src/test/support/publication-catalog";
-import { readPublishedPaths } from "../src/test/support/published-site";
+import {
+  loadPublishedSite,
+  readPublishedPaths,
+} from "../src/test/support/published-site";
 
 const languageSelectorLabels: Record<Locale, string> = {
   ca: "Idioma",
@@ -172,20 +175,31 @@ test("matrix unknown routes serve the 404 document", async ({ page }) => {
 test("matrix state: active event without a next edition keeps closed registration", async ({
   page,
 }) => {
-  await page.goto("/ca/esdeveniments/ultra-pirineu/");
+  // The state is read from the published catalog, not frozen to one event:
+  // announcing a date moves the entry to the upcoming group and the next
+  // undated event takes its place. When every active event has an announced
+  // date the journey skips; the AstroContainer render test with synthetic data
+  // (apps/web/src/test/event-detail-render.test.ts) keeps the branch covered.
+  const [entry] = (await loadPublishedSite("ca")).eventHubGroups[
+    "active-without-date"
+  ];
+  if (entry === undefined) {
+    test.skip(true, "every active event has an announced date in this build");
+    return;
+  }
+
+  await page.goto(entry.href);
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
+  // The featured edition is a past one, so the dates slot replaces its dates
+  // with the missing-date statement instead of announcing a calendar date.
+  const practicalInfo = page.getByRole("region", {
+    name: "Informació pràctica",
+  });
   await expect(
-    page.getByRole("region", { name: "Informació pràctica" }).locator("time"),
-  ).toHaveCount(0);
-  await expect(
-    page.getByText("Sense data anunciada", { exact: true }),
+    practicalInfo.getByText("Sense data anunciada", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Inscripció tancada", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Més informació a la seva web" }),
-  ).toHaveCount(1);
+  await expect(practicalInfo.locator("time")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Inscriu-t'hi" })).toHaveCount(0);
 });
 
 test("matrix state: event registration follows the published edition", async ({

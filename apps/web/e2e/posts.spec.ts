@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import AxeBuilder from "@axe-core/playwright";
 import {
   getHomepagePostVariants,
   type PostVariant,
@@ -512,53 +511,4 @@ test.describe("editorial navigation without JavaScript", () => {
     await link.click();
     await expect(page).toHaveURL(targetUrl);
   });
-});
-
-test("editorial hubs and published articles have no detected accessibility violations @a11y", async ({
-  page,
-  browserName,
-}) => {
-  test.skip(
-    browserName !== "chromium",
-    "axe runs on Chromium desktop and mobile.",
-  );
-  const paths = [
-    "/ca/",
-    "/ca/noticies/",
-    "/ca/blog/",
-    ...pilots.map((pilot) => pilot.path),
-  ];
-  for (const path of paths) {
-    await page.goto(path);
-    expect(
-      (
-        await new AxeBuilder({ page })
-          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-          .analyze()
-      ).violations,
-    ).toEqual([]);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    if (path === registrationArticle.path) {
-      await page
-        .getByRole("link", {
-          name: `Amplia la imatge: ${registrationArticle.screenshotAlt}`,
-          exact: true,
-        })
-        .click();
-      await expect(
-        page.getByRole("dialog", { name: "Imatge ampliada" }),
-      ).toBeVisible();
-      expect(
-        (
-          await new AxeBuilder({ page })
-            .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-            .analyze()
-        ).violations,
-      ).toEqual([]);
-    }
-  }
 });

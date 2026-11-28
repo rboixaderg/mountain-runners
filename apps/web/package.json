@@ -8,8 +8,10 @@
     "dev": "astro dev",
     "paraglide:generate": "node scripts/generate-paraglide.mjs",
     "paraglide:verify": "node scripts/verify-paraglide-generation.mjs",
-    "test": "pnpm paraglide:generate && pnpm paraglide:verify && vitest run",
-    "typecheck": "pnpm paraglide:generate && astro check"
+    "test": "pnpm paraglide:generate && pnpm test:generated",
+    "test:generated": "pnpm paraglide:verify && MR_PARAGLIDE_PREGENERATED=1 vitest run",
+    "typecheck": "pnpm paraglide:generate && pnpm typecheck:generated",
+    "typecheck:generated": "MR_PARAGLIDE_PREGENERATED=1 astro check"
   },
   "dependencies": {
     "@inlang/paraglide-js": "3.2.2",

@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { Contact } from "../lib/content/models";
 import { hasCompleteTranslation, type Locale } from "../lib/content/primitives";
 import {
@@ -12,7 +12,18 @@ import {
 import { collectLocalResourcePaths } from "../lib/content/resources";
 import { loadContentSource } from "./support/publication-catalog";
 
-const loadSource = loadContentSource;
+// Reading and validating the real collections from disk is the expensive part
+// of this suite. The base source is loaded once and every test receives its own
+// deep copy, so the mutations below never leak between tests.
+let baseSource: ContentSource;
+
+beforeAll(async () => {
+  baseSource = await loadContentSource();
+});
+
+async function loadSource(): Promise<ContentSource> {
+  return structuredClone(baseSource);
+}
 
 function variantKeys(source: ContentSource) {
   return createPublicationCatalog(source).variants.map(
