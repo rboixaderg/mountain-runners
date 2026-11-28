@@ -19,6 +19,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Local Git worktrees
+/.worktrees/
+
 # Local environment and credentials
 .env
 .env.*

@@ -109,6 +109,9 @@ writing or reviewing `apps/web` code.
 
 - Keep the primary worktree on `main` and reserve it for phase planning,
   tracking documentation and adding or refining tasks.
+- Create all new local linked worktrees under `.worktrees/<name>/` at the
+  root of the primary worktree. Never stage files from `.worktrees/`. The
+  deployed private agent keeps its configured worktree location.
 - Implement every task assigned to a development phase in a dedicated Git
   worktree, on its own short-lived branch created from the latest `main`. Do not
   make implementation changes in the primary worktree.
