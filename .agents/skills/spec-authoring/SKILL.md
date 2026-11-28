@@ -2,7 +2,7 @@
 name: spec-authoring
 description: Use when defining a Mountain Runners phase, feature, task, or implementation specification. Creates a scoped, reviewable Catalan spec using the project convention.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Mountain Runners Specification Authoring
@@ -26,31 +26,36 @@ unreviewed inherited content, or deployment credentials.
 
 ## Clarify Before Writing
 
-Ask only for decisions that materially change scope, architecture, content
-ownership, privacy, security, operations, or acceptance. Reuse accepted ADRs and
-record confirmed decisions in the specification rather than leaving them implicit.
+Check `docs/specs/README.md` first to confirm the change requires a
+specification rather than a direct scoped pull request. Ask only for decisions
+that materially change scope, architecture, content ownership, privacy,
+security, operations, or acceptance. Reuse accepted ADRs and record confirmed
+decisions in the specification rather than leaving them implicit.
 
 For a small feature, do not expand it into a phase. Keep the requirements and
 tests proportional, but retain every required section from the convention.
 
 ## Authoring Workflow
 
-1. Create a descriptive kebab-case file in `docs/specs/`.
+1. Create a descriptive kebab-case file in `docs/specs/`, or under
+   `docs/specs/phase-N/` for a phase specification.
 2. Follow the ordered sections in `docs/specs/README.md` exactly.
 3. State concrete, observable outcomes and exclusions. Do not write vague goals
-   such as “improve UX” without a verifiable result. Acceptance criteria define
+   such as "improve UX" without a verifiable result. Acceptance criteria define
    the smallest set of observable outcomes, not the implementation. Exclude
    speculative generality and unrequested features.
-4. Define one or more implementation tasks before implementation starts. For
-   each, state scope, exclusions, dependencies, observable result, minimum
-   checks and a dedicated PR or justified grouping. A single-task specification
-   has one row and one task subsection.
+4. Define one or more implementation tasks before implementation starts, using
+   `TN.M` for phase tasks and `TM` for standalone specifications. For each,
+   state scope, exclusions, dependencies, observable result, minimum checks and
+   a dedicated PR or justified grouping. A single-task specification has one row
+   and one task subsection.
 5. Put detailed domain requirements after delivery tracking. Keep stable
    structure in code and changing editorial data in restricted YAML, per ADR 0004.
 6. Define the smallest relevant automated and manual checks. Do not claim full
    WCAG conformance from automation alone.
-7. Link the specification from the roadmap only when it is an approved roadmap
-   delivery; otherwise link it from the relevant backlog entry.
+7. Add the specification to `docs/README.md`. Link it from `docs/roadmap.md`
+   only when it is an approved roadmap delivery, or record it in
+   `docs/backlog.md` when triaging a backlog entry.
 8. Run Prettier and `git diff --check`. Review the diff for conflicts with ADRs,
    duplicated sources of truth, accidental scope expansion and private data.
 9. Before declaring the spec ready, verify every required section exists and the
@@ -58,7 +63,8 @@ tests proportional, but retain every required section from the convention.
 
 ## Pull Request Handoff
 
-Each draft PR links the specification, names the units and acceptance criteria it
-covers, records executed checks, and identifies remaining decisions. Implementation
-uses a dedicated worktree from the latest `main`; specification planning remains
-in the primary worktree.
+Each pull request follows the title convention in `docs/specs/README.md`, links
+the specification, names the units and acceptance criteria it covers, records
+executed checks, and identifies remaining decisions. Both specification
+authoring and implementation use a dedicated worktree on a short-lived branch
+from the latest `main`; keep the primary worktree clean on `main`.

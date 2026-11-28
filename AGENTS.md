@@ -107,21 +107,22 @@ writing or reviewing `apps/web` code.
 
 ## Git And Review
 
-- Keep the primary worktree on `main` and reserve it for phase planning,
-  tracking documentation and adding or refining tasks.
-- Implement every task assigned to a development phase in a dedicated Git
-  worktree, on its own short-lived branch created from the latest `main`. Do not
-  make implementation changes in the primary worktree.
-- Worktree isolation does not bypass branch protection: implementation changes
-  still require validation and a reviewed pull request before merging.
+- Keep the primary worktree clean on `main` as a reference checkout. Make every
+  tracked change, whether code, content, specifications or documentation, in a
+  dedicated Git worktree on its own short-lived branch created from the latest
+  `main`.
+- Worktree isolation does not bypass branch protection: every change still
+  requires validation and a reviewed pull request before merging.
 - Use Conventional Commits: `type(scope): summary`, with a concise imperative
   summary. Allowed types include `feat`, `fix`, `docs`, `refactor`, `test`,
   `build`, `ci`, `chore` and `security`.
-- Title a pull request for a specification task as
-  `type(phase-N-tN.M): summary`, using the exact phase and task identifiers from
-  the specification. A pull request that only defines or changes a phase
-  specification uses `docs(specs-phase-N): summary`. The title must describe
-  only the work covered by that pull request.
+- Title pull requests according to
+  [`docs/specs/README.md`](docs/specs/README.md#seguiment-i-actualització):
+  `type(phase-N-tN.M): summary` for a phase task, `type(<spec>-tM): summary`
+  for a standalone specification task, `docs(specs-phase-N): summary` or
+  `docs(specs-<spec>): summary` when only defining or updating a specification,
+  and `type(scope): summary` when no specification is required. The title must
+  describe only the work covered by that pull request.
 - Do not create commits unless explicitly asked. When asked, inspect status and
   diff, stage only intended files and use a semantic commit message.
 - Agents must never merge a pull request on their own initiative and never

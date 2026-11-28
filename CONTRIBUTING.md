@@ -51,26 +51,24 @@ la feina feta; la CI continua executant la suite completa.
 
 ## Flux De Treball
 
-El worktree principal es manté a `main` i es reserva per planificar fases,
-actualitzar-ne el seguiment i afegir o concretar tasques. Qualsevol tasca
-d'implementació assignada a una fase es desenvolupa en un worktree dedicat, mai
-al worktree principal.
+El worktree principal es manté net a `main` com a còpia de referència. Qualsevol
+canvi versionat, sigui de codi, contingut, especificacions o documentació, es fa
+en un worktree dedicat amb una branca de vida curta creada des de l'últim
+`main`.
 
-1. Actualitza `main` i crea una branca de vida curta per a la tasca.
+1. Actualitza `main` i crea una branca de vida curta per al canvi.
 2. Crea un worktree dedicat associat a aquesta branca.
 3. Fes el canvi complet més petit possible dins del worktree dedicat.
 4. Executa les comprovacions aplicables i actualitza la documentació quan canviï
    el comportament o un límit arquitectònic.
-5. Obre una pull request amb un títol alineat amb la fase o especificació, una
-   descripció clara, evidència de validació i qualsevol impacte operatiu.
+5. Obre una pull request amb un títol alineat amb l'abast, una descripció clara,
+   evidència de validació i qualsevol impacte operatiu.
 6. La PR només es fusiona després de la revisió i de superar les comprovacions
    obligatòries. Segueix les [regles de merge d'AGENTS.md](AGENTS.md#git-and-review).
-7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
+7. Elimina el worktree i la branca de vida curta quan el canvi estigui fusionat.
 
 Els canvis directes al servidor de producció i els push directes a la branca
-principal protegida no formen part del flux de treball normal. Reservar el
-worktree principal per a documentació de planificació no elimina aquestes
-proteccions.
+principal protegida no formen part del flux de treball.
 
 ## Estratègia de proves
 
@@ -136,25 +134,13 @@ Les pull requests no poden contenir secrets, credencials generades ni formataci�
 no relacionada. Indica clarament si un canvi afecta contingut públic, models de
 dades, seguretat, desplegament o el futur servei de xat.
 
-El títol també segueix Conventional Commits i identifica una única unitat de
-treball:
+El títol segueix Conventional Commits, identifica una única unitat de treball i
+utilitza els formats definits a la
+[convenció d'especificacions](docs/specs/README.md#seguiment-i-actualització)
+per a tasques de fase, tasques d'especificacions autònomes, edició
+d'especificacions i canvis que no requereixen especificació. No agrupis feines
+diferents sota un títol genèric: si l'abast d'una especificació canvia,
+actualitza-la abans d'obrir la PR.
 
-```text
-type(phase-N-tN.M): resum breu
-```
-
-`N` i `N.M` són els identificadors exactes de la fase i la tasca de
-`docs/specs/`; per exemple, `docs(phase-2-t2.2): incorpora skills portables
-revisades`. Si la PR només crea o modifica l'especificació d'una fase, utilitza:
-
-```text
-docs(specs-phase-N): resum breu
-```
-
-Per exemple: `docs(specs-phase-4): defineix la cobertura editorial`. No agrupis
-tasques diferents sota un títol genèric: si l'abast canvia, crea o actualitza la
-tasca de l'especificació abans d'obrir la PR.
-
-La CI valida que el títol sigui compatible amb Conventional Commits. L'abast
-exacte `phase-N-tN.M` o `specs-phase-N` és una política de revisió humana i no
-està validat automàticament en tots els casos.
+La CI valida que el títol compleixi Conventional Commits. La correspondència
+amb l'identificador exacte de l'especificació es comprova en la revisió humana.

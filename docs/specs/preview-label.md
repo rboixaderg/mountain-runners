@@ -4,7 +4,7 @@
 
 Implementació fusionada a la [PR #268](https://github.com/rboixaderg/mountain-runners/pull/268).
 Continuen pendents les [verificacions a GitHub](#verificacions-a-github) sense
-evidència registrada. L'entrega correspon a l'[entrada del backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
+evidència registrada. L'entrega correspon a l'[entrada del backlog](../backlog.md#necessitats-incorporades)
 i a l'[issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
 Les esmenes als
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
@@ -263,7 +263,7 @@ servidor (`pnpm test:server`) amb GitHub i transport simulats.
 
 ## Fora D'Abast
 
-- Retirar `/preview`: entrada pròpia del [backlog](../backlog.md#retirar-la-petició-de-preview-amb-preview).
+- Retirar `/preview`: entrada pròpia del [backlog](../backlog.md#necessitats-incorporades).
 - Publicar en reobrir una PR, publicar PR de forks o canviar el build no fiable.
 - Que la reconciliació periòdica retiri previews de PR sense etiqueta.
 - Canviar el token del servei, l'entorn `previews` o les proteccions de `main`.

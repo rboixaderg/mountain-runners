@@ -2,9 +2,10 @@
 
 ## Estat
 
-Acceptada. Esmenada el 9 de novembre de 2026 (T8.2): l'[ADR 0013](0013-private-development-agent-boundary.md)
-acota una excepció per al servei privat de desenvolupament de la fase 8. Vegeu
-l'apartat Esmena.
+Acceptada. Esmenada el 9 de novembre de 2026 (T8.2) per acotar l'excepció del
+servei privat de la fase 8 ([ADR 0013](0013-private-development-agent-boundary.md))
+i el 26 de novembre de 2026 per exigir un worktree dedicat a qualsevol canvi
+versionat. Vegeu els apartats d'esmena.
 
 ## Decisió
 
@@ -39,6 +40,14 @@ sessions locals i la resta d'agents mantenen la prohibició implícita de push,
 merge, publicació i accés a secrets. La revisió humana i les proteccions de
 `main` es mantenen: el merge continua sent una decisió humana que el servei
 només executa amb la petició verificada.
+
+## Esmena (26 de novembre de 2026): worktree dedicat per a qualsevol canvi versionat
+
+El worktree principal es manté net a `main` com a còpia de referència. Com que
+`main` està protegida i tot canvi versionat arriba per pull request, tant les
+implementacions com els canvis d'especificacions, roadmap, backlog o resta de
+documentació es desenvolupen en un worktree dedicat amb una branca de vida curta
+creada des de l'últim `main`.
 
 ## Raonament
 

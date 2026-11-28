@@ -3,7 +3,7 @@
 ## Estat
 
 Defineix l'entrada del
-[backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada).
+[backlog](../backlog.md#necessitats-incorporades).
 L'acceptació de l'esmena consta a
 [l'ADR 0013](../decisions/0013-private-development-agent-boundary.md).
 T1 i T2 s'han fusionat. Les proves de l'entrega són simulades; els controls

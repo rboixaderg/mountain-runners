@@ -33,8 +33,9 @@ verificat.
 - Git és la font de veritat del contingut: fusionar a la branca principal
   protegida fa una variant editorialment publicable i la incorpora al build. La
   publicació efectiva a producció dependrà del flux de desplegament de la fase 5.
-- El worktree principal es manté a `main` per planificar i seguir les fases;
-  cada tasca d'implementació es desenvolupa en un worktree i una branca propis.
+- El worktree principal es manté net a `main` com a còpia de referència;
+  qualsevol canvi versionat es desenvolupa en un worktree i una branca propis
+  ([flux de treball](../CONTRIBUTING.md#flux-de-treball)).
 - El disseny segueix `DESIGN.md`; la navegació inicial és plana: Qui som, Socis,
   Escoles i Esdeveniments.
 - Els [límits dels assistents](ai-assistant.md) distingeixen el futur xat públic,

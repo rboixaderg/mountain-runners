@@ -571,6 +571,39 @@ test("reports a documentation file that the map does not reach", (t) => {
   assert.ok(hasFinding(findings, "docs/orphan.md", /not reachable/u));
 });
 
+test("reports an ADR or standalone spec reached only through another document", (t) => {
+  const directory = createRepository(t, {
+    ...baseFiles(),
+    "docs/guide.md":
+      "# Guide\n\n- [ADR](decisions/0001-example.md)\n- [Spec](specs/feature.md)\n",
+    "docs/decisions/0001-example.md": "# ADR 0001\n",
+    "docs/specs/feature.md": "# Spec\n",
+  });
+
+  const findings = checkDocumentation(directory);
+
+  assert.ok(
+    hasFinding(
+      findings,
+      "docs/decisions/0001-example.md",
+      /not linked directly from docs\/README\.md/u,
+    ),
+  );
+  assert.ok(
+    hasFinding(
+      findings,
+      "docs/specs/feature.md",
+      /not linked directly from docs\/README\.md/u,
+    ),
+  );
+
+  writeFileSync(
+    join(directory, "docs/README.md"),
+    "# Map\n\n- [Guide](guide.md)\n- [ADR](decisions/0001-example.md)\n- [Spec](specs/feature.md)\n",
+  );
+  assert.deepEqual(checkDocumentation(directory), []);
+});
+
 test("reports a task identifier in a living-document heading", (t) => {
   const directory = createRepository(t, {
     ...baseFiles(),
