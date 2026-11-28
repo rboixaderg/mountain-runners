@@ -19,6 +19,10 @@ export default defineConfig({
   testDir: "apps/web/e2e",
   forbidOnly: Boolean(process.env.CI),
   reporter: [["list"], ["html", { open: "never" }]],
+  // Every test owns its browser context and reads the published content
+  // without mutating it, so the suite can distribute tests across workers
+  // instead of keeping a whole file in one.
+  fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   use: {

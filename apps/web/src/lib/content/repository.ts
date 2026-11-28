@@ -1,3 +1,4 @@
+import { createBuildCache } from "./build-cache";
 import { getCollection } from "astro:content";
 import { fileURLToPath } from "node:url";
 import {
@@ -28,7 +29,22 @@ async function validateLocalResources(source: unknown): Promise<void> {
   );
 }
 
-export async function getPublicationCatalog(): Promise<PublicationCatalog> {
+const cacheCatalog = createBuildCache<PublicationCatalog>();
+const cachePostVariants = createBuildCache<PostVariant[]>();
+
+function publicationDate(): string {
+  return process.env.BUILD_TODAY ?? getMadridDate(new Date());
+}
+
+export function getPublicationCatalog(): Promise<PublicationCatalog> {
+  const today = publicationDate();
+  const preview = import.meta.env.PUBLIC_PREVIEW === "true";
+  return cacheCatalog(JSON.stringify([today, preview]), () =>
+    loadCatalog(today),
+  );
+}
+
+async function loadCatalog(today: string): Promise<PublicationCatalog> {
   const [schools, events, entities, documents, externalActions, contact] =
     await Promise.all([
       getCollection("schools"),
@@ -46,7 +62,6 @@ export async function getPublicationCatalog(): Promise<PublicationCatalog> {
     externalActions: externalActions.map(({ data }) => data),
     contact: contact.map(({ data }) => data),
   };
-  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
   assertEventDateConsistency(source.events, today);
   await validateLocalResources(source);
   const catalog = createPublicationCatalog(source);
@@ -54,7 +69,7 @@ export async function getPublicationCatalog(): Promise<PublicationCatalog> {
   return catalog;
 }
 
-async function getPostSource(): Promise<PostSource> {
+async function loadPostSource(): Promise<PostSource> {
   const [posts, events] = await Promise.all([
     getCollection("posts"),
     getCollection("events"),
@@ -67,19 +82,27 @@ async function getPostSource(): Promise<PostSource> {
   };
 }
 
-export async function getPublishedPostVariants(): Promise<PostVariant[]> {
-  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
-  return createPublishedPostVariants(await getPostSource(), today);
+function getPostVariants(preview: boolean): Promise<PostVariant[]> {
+  const today = publicationDate();
+  const key = JSON.stringify([today, preview]);
+  return cachePostVariants(key, async () => {
+    const source = await loadPostSource();
+    return preview
+      ? createPreviewPostVariants(source, today)
+      : createPublishedPostVariants(source, today);
+  });
 }
 
-export async function getPreviewPostVariants(): Promise<PostVariant[]> {
-  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
-  return createPreviewPostVariants(await getPostSource(), today);
+export function getPublishedPostVariants(): Promise<PostVariant[]> {
+  return getPostVariants(false);
 }
 
-export async function getBuildPostVariants(): Promise<PostVariant[]> {
-  if (import.meta.env.PUBLIC_PREVIEW === "true") {
-    return getPreviewPostVariants();
-  }
-  return getPublishedPostVariants();
+export function getPreviewPostVariants(): Promise<PostVariant[]> {
+  return getPostVariants(true);
+}
+
+export function getBuildPostVariants(): Promise<PostVariant[]> {
+  return import.meta.env.PUBLIC_PREVIEW === "true"
+    ? getPreviewPostVariants()
+    : getPublishedPostVariants();
 }
